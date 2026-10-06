@@ -4,7 +4,7 @@ import EndSeasonButton from "./end-season-button";
 import SeasonRulesForm from "./season-rules-form";
 import ChangePasswordForm from "./change-password-form";
 import SettingsTabs from "./settings-tabs";
-import { getWeekStart } from "@/lib/utils";
+import { getWeekStart, formatDate } from "@/lib/utils";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -23,14 +23,41 @@ export default async function SettingsPage() {
 
   const weekStart = getWeekStart();
   let currentOverride = null;
+  let pastWeeks: { weekStart: string; weekLabel: string; target_count: number; penalty_per_miss: number; reward_per_extra: number; isOverride: boolean }[] = [];
+
   if (activeSeason) {
-    const { data: override } = await supabase
-      .from("weekly_rule")
-      .select("*")
-      .eq("season_id", activeSeason.id)
-      .eq("week_start", weekStart)
-      .single();
+    const [{ data: override }, { data: allOverrides }] = await Promise.all([
+      supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id).eq("week_start", weekStart).single(),
+      supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id).order("week_start", { ascending: false }),
+    ]);
     currentOverride = override;
+
+    const overrideMap = new Map((allOverrides ?? []).map((r) => [r.week_start, r]));
+    const seasonStart = new Date(activeSeason.start_date + "T00:00:00");
+    const currentWeekDate = new Date(weekStart + "T00:00:00");
+
+    const d = new Date(seasonStart);
+    const day = d.getDay();
+    d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
+
+    while (d < currentWeekDate) {
+      const ws = d.toISOString().split("T")[0];
+      const weekEnd = new Date(d);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const label = `${formatDate(ws)} ~ ${formatDate(weekEnd.toISOString().split("T")[0])}`;
+
+      const ov = overrideMap.get(ws);
+      pastWeeks.push({
+        weekStart: ws,
+        weekLabel: label,
+        target_count: ov?.target_count ?? activeSeason.default_target_count,
+        penalty_per_miss: ov?.penalty_per_miss ?? activeSeason.default_penalty_per_miss,
+        reward_per_extra: ov?.reward_per_extra ?? activeSeason.default_reward_per_extra,
+        isOverride: !!ov,
+      });
+      d.setDate(d.getDate() + 7);
+    }
+    pastWeeks.reverse();
   }
 
   const seasonTab = activeSeason ? (
@@ -86,6 +113,7 @@ export default async function SettingsPage() {
           penalty_per_miss: currentOverride.penalty_per_miss,
           reward_per_extra: currentOverride.reward_per_extra,
         } : null}
+        pastWeeks={pastWeeks}
       />
     </div>
   ) : (

@@ -63,14 +63,14 @@ export default function CreateSeasonForm() {
           <div>
             <label className="text-xs text-gray-500">미달 벌금</label>
             <div className="relative mt-1">
-              <input name="default_penalty_per_miss" type="number" min="0" step="100" defaultValue="1000" required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <input name="default_penalty_per_miss" type="number" min="0" step="1000" defaultValue="1000" required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
             </div>
           </div>
           <div>
             <label className="text-xs text-gray-500">초과 차감</label>
             <div className="relative mt-1">
-              <input name="default_reward_per_extra" type="number" min="0" step="100" defaultValue="0" className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <input name="default_reward_per_extra" type="number" min="0" step="1000" defaultValue="0" className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
             </div>
           </div>

@@ -51,11 +51,11 @@ export default function WeeklyRuleForm({ seasonId, weekStart, defaultValues }: P
         </div>
         <div>
           <label className="text-xs text-gray-500">미달 벌금(원)</label>
-          <input name="penalty_per_miss" type="number" min="0" step="100" defaultValue={defaultValues.penalty_per_miss} required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <input name="penalty_per_miss" type="number" min="0" step="1000" defaultValue={defaultValues.penalty_per_miss} required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
         </div>
         <div>
           <label className="text-xs text-gray-500">초과 차감(원)</label>
-          <input name="reward_per_extra" type="number" min="0" step="100" defaultValue={defaultValues.reward_per_extra} className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <input name="reward_per_extra" type="number" min="0" step="1000" defaultValue={defaultValues.reward_per_extra} className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
         </div>
       </div>
       {message && <p className="text-sm text-green-600">{message}</p>}
