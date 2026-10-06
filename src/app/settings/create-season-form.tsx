@@ -34,25 +34,51 @@ export default function CreateSeasonForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <input name="name" placeholder="시즌 이름 (예: 시즌 1)" required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
-      <input name="start_date" type="date" defaultValue={new Date().toISOString().split("T")[0]} required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
-      <div className="grid grid-cols-3 gap-2">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">시즌 이름</label>
+        <input name="name" placeholder="예: 시즌 1" required className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-500">목표 횟수</label>
-          <input name="default_target_count" type="number" min="1" defaultValue="3" required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">시작일</label>
+          <input name="start_date" type="date" defaultValue={new Date().toISOString().split("T")[0]} required className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
         </div>
         <div>
-          <label className="text-xs text-gray-500">미달 벌금(원)</label>
-          <input name="default_penalty_per_miss" type="number" min="0" step="100" defaultValue="1000" required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
-        </div>
-        <div>
-          <label className="text-xs text-gray-500">초과 차감(원)</label>
-          <input name="default_reward_per_extra" type="number" min="0" step="100" defaultValue="0" className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">종료일 (선택)</label>
+          <input name="end_date" type="date" className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
         </div>
       </div>
+
+      <div className="pt-2 border-t border-gray-100">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">기본 벌금 규칙</p>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-xs text-gray-500">주간 목표</label>
+            <div className="relative mt-1">
+              <input name="default_target_count" type="number" min="1" defaultValue="3" required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">회</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">미달 벌금</label>
+            <div className="relative mt-1">
+              <input name="default_penalty_per_miss" type="number" min="0" step="100" defaultValue="1000" required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500">초과 차감</label>
+            <div className="relative mt-1">
+              <input name="default_reward_per_extra" type="number" min="0" step="100" defaultValue="0" className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {error && <p className="text-red-500 text-sm">{error}</p>}
-      <button type="submit" disabled={loading} className="w-full py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
+      <button type="submit" disabled={loading} className="w-full py-3 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors">
         {loading ? "생성 중..." : "시즌 시작"}
       </button>
     </form>

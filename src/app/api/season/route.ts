@@ -43,10 +43,22 @@ export async function PATCH(request: NextRequest) {
   if (action === "end") {
     const { error } = await supabase.from("season").update({
       is_active: false,
-      end_date: new Date().toISOString().split("T")[0],
+      end_date: body.end_date ?? new Date().toISOString().split("T")[0],
     }).eq("id", season_id);
 
     if (error) return NextResponse.json({ error: { code: "END_FAILED", message: error.message } }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "update_defaults") {
+    const { default_target_count, default_penalty_per_miss, default_reward_per_extra } = body;
+    const { error } = await supabase.from("season").update({
+      default_target_count,
+      default_penalty_per_miss,
+      default_reward_per_extra: default_reward_per_extra ?? 0,
+    }).eq("id", season_id);
+
+    if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED", message: error.message } }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
