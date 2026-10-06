@@ -25,20 +25,20 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // 세션 refresh만 수행 (토큰 갱신), getUser() 네트워크 호출 제거
-  await supabase.auth.getSession();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const hasSession = request.cookies.getAll().some(
-    (c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token")
-  );
-
-  if (!hasSession && !request.nextUrl.pathname.startsWith("/login")) {
+  if (
+    !user &&
+    !request.nextUrl.pathname.startsWith("/login")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && request.nextUrl.pathname.startsWith("/login")) {
+  if (user && request.nextUrl.pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
