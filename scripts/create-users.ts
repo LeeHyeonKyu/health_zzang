@@ -18,8 +18,8 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 const USERS: { email: string; password: string; nickname: string }[] = [
-  // { email: "user1@crew.com", password: "password123", nickname: "홍길동" },
-  // { email: "user2@crew.com", password: "password123", nickname: "김철수" },
+  // { email: "user1@health.zzang", password: "password123", nickname: "홍길동" },
+  // { email: "user2@health.zzang", password: "password123", nickname: "김철수" },
   // 크루원 정보를 여기에 추가하세요
 ];
 

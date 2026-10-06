@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const email = id.includes("@") ? id : `${id}@crew.com`;
+    const email = id.includes("@") ? id : `${id}@health.zzang`;
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email,
