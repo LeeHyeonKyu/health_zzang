@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+/**
+ * 1.4.35 (L44, own-calendar #105) — 이 CLI는 **사람이 자기 셸에서** 부른다. 러너는 setup 액션이 `.factory/`의
+ * 런타임 의존성을 설치하지만 갓 받은 클론에는 없고, 정적 import는 그때 `Cannot find package 'smol-toml'`
+ * 스택만 남기고 죽는다 — 무엇을 하면 되는지는 말하지 않는다. 그래서 라이브러리를 동적으로 읽고, 의존성이
+ * 없을 때만 그 한 줄을 말한다. 다른 오류는 그대로 던진다(삼키지 않는다).
+ */
+let run, makeGh, parseTransitionArgs, refuseHumanFlag, transition, principalFromEnv, makeRehearsalChecker, loadHarness, loadCharter, makeQueueAdmission, resolveFactoryLogins;
+try {
+  ({ run } = await import("../lib/exec.js"));
+  ({ makeGh } = await import("../lib/gh.js"));
+  ({ parseTransitionArgs, refuseHumanFlag, transition, principalFromEnv } = await import("../lib/transition.js"));
+  ({ makeRehearsalChecker } = await import("../lib/rehearsal.js"));
+  ({ loadHarness, loadCharter } = await import("../lib/config.js"));
+  ({ makeQueueAdmission } = await import("../lib/admission.js"));
+  ({ resolveFactoryLogins } = await import("../lib/gh.js"));
+} catch (e) {
+  if (e?.code !== "ERR_MODULE_NOT_FOUND") throw e;
+  console.error(
+    "transition: the factory's runtime dependencies are not installed in this clone.\n" +
+    "  run:  npm install --prefix .factory --no-audit --no-fund\n" +
+    "  then run this command again.\n" +
+    `  (${String(e.message).split("\n")[0]})`
+  );
+  process.exit(1);
+}
+
+const USAGE = [
+  "usage: transition <issue> [<to-label>] [--human] [--retry] [--reason <text>]",
+  "",
+  "  --human   전이 거부를 needs-human으로 옮기지 않고 이유만 돌려준다.",
+  "            게이트 파일(.factory/out/gates.json) 요구는 --human으로도 건너뛸 수 없다 —",
+  "            사람이 실행해도 awaiting-review/approved/merged는 이번 런의 GREEN 판정 파일을 요구한다.",
+  "  --retry   (--human 전용, ADR-020 KTB-32) factory:needs-human에서 **중단 지점**으로 되돌린다.",
+  "            목적 라벨은 이슈에 남은 기록이 정한다 — 마지막으로 blocked/needs-human으로 간 전이의",
+  "            출발 라벨(awaiting-review면 review만 다시 돈다). 라벨을 명시해도 같은 검사를 지난다:",
+  "            중단 지점이 아닌 자리로는 전이하지 않는다(exit 2, 라벨 불변).",
+].join("\n");
+
+const args = parseTransitionArgs(process.argv.slice(2));
+if (args.error) { console.error(`transition: ${args.error}\n\n${USAGE}`); process.exit(1); }
+const { issue, to, human, retry, reason } = args;
+
+// 리뷰 3c63672 MF-2 — 두 번째 자물쇠(`refuseHumanFlag`의 근거는 `lib/transition.js`에 있다). 첫 번째는
+// `hooks/block-dangerous.sh`(셸 경계)고, 이것은 그 훅을 뚫고 여기까지 온 호출을 위한 방어선이다.
+// `gh`를 부르기 전에(네트워크 호출 없이) 거절한다.
+if ((human || retry) && refuseHumanFlag(process.env)) {
+  console.error(
+    "transition: --human/--retry refused — this looks like an agent session or CI runner " +
+    "(CLAUDE_PROJECT_DIR or GITHUB_ACTIONS is set), not a person's own shell. " +
+    "--human/--retry is the person's edge (ADR-020 KTB-32, review 3c63672 MF-2) — stages transition in-process."
+  );
+  process.exit(2);
+}
+
+const repo = process.env.FACTORY_REPO || JSON.parse((await run("gh", ["repo", "view", "--json", "nameWithOwner"])).stdout).nameWithOwner;
+// 전이 경로다 — 게이트 판정 파일을 읽어서 넘긴다(gatesChecked). 파일이 없으면 없는 대로 넘기고
+// requirements가 "확인 안 됨"으로 거부한다. 사람이 실행해도 판정 파일을 대신 써주지는 않는다.
+const root = (await run("git", ["rev-parse", "--show-toplevel"])).stdout.trim();
+const gatesPath = join(root, ".factory/out/gates.json");
+let gatesFile = null;
+if (existsSync(gatesPath)) {
+  try { gatesFile = JSON.parse(readFileSync(gatesPath, "utf8")); }
+  catch (e) { console.error(`transition: ${gatesPath} unreadable — ${e.message}`); }
+}
+const ctxExtra = { gatesChecked: true, ...(gatesFile ? { gatesFile } : {}) };
+const gh = makeGh({ run, repo });
+
+/**
+ * KTB-44 / ADR-025 — **큐로 가는 전이만** 리허설을 묻는다. 지문은 로컬에서 계산하고(harness.toml +
+ * CHARTER 프론트매터), 기록은 저장소에서 읽는다. 읽지 못하면 통과가 아니라 거부다(fail closed) —
+ * own-calendar의 3라운드는 "러너에서 한 번도 돌려보지 않은 하네스로 이슈를 시작한" 대가였다.
+ * 검사기는 목적 라벨이 `factory:queue`일 때만 불린다(다른 전이는 gh 호출 하나도 더 하지 않는다).
+ */
+let defaultBranch = "main";
+try { defaultBranch = loadHarness(root)?.project?.default_branch || "main"; } catch { /* 기본값 그대로 */ }
+const rehearsal = makeRehearsalChecker({ gh, root, branch: defaultBranch });
+// S2 — 큐 진입 심사(job 형식·NEVER_AUTOMATE·큐 길이·자기생성 상한). CHARTER를 못 읽으면 심사기가 거부한다(fail closed).
+let charterForAdmission = null;
+try { charterForAdmission = loadCharter(root); } catch { charterForAdmission = null; }
+const admission = charterForAdmission
+  ? makeQueueAdmission({ gh, charter: charterForAdmission, factoryLogins: () => resolveFactoryLogins({ gh, env: process.env }) })
+  : async () => ({ ok: false, reasons: ["docs/factory/CHARTER.md could not be read — queue admission needs it"] });
+
+// S1 — 제출자 자기 신고(감사 기록). 로그인 조회가 실패해도 전이는 막지 않는다(`unknown`).
+let login = null;
+try { login = await gh.viewerLogin(); } catch { /* 감사 필드만 비운다 */ }
+const r = await transition({ gh, issue, to, human, retry, reason, by: principalFromEnv(process.env, login), ctxExtra, rehearsal, admission });
+console.log(JSON.stringify(r));
+process.exit(r.ok ? 0 : 2);

@@ -1,0 +1,246 @@
+schema = 1
+
+# know-thy-build factory harness — M0 skeleton. /project fills [commands]; /qa SETUP fills [test.*].
+# Sections marked (protected) can only change through a human-merged PR (the merge stage refuses to auto-merge one).
+
+[project]
+name           = "health_zzang"
+spec_dir       = "docs/features"
+runs_dir       = "docs/factory/runs"
+default_branch = "main"
+
+[runtime]
+setup = "npm ci"
+node  = "22"
+# setup_note (G1): `[runtime].setup` runs at the repo root, as its own step in
+# `.factory/actions/setup/action.yml` (`bash -e`, with $GITHUB_PATH/$GITHUB_ENV available) — before Claude/
+# test-env install and before the gate commands above run in a later workflow step. A harness that needs a
+# toolchain other than Node (Flutter, Python, …) can install it here and extend PATH for every step that
+# follows, gates included — no separate `[runtime].actions` mechanism exists yet (deferred, ADR-020 G1).
+# KTB-39: **prefer setup commands that do not rewrite tracked files** (pin toolchain versions; use
+# lockfile-respecting installs — `npm ci`, not `npm install`; `flutter pub get` rewrites
+# `pubspec.lock` and the generated plugin registrants). The stage snapshots the worktree right after
+# setup and exempts exactly that diff from the no-write clean check, so a dirtying setup no longer
+# sends triage/plan/review to `factory:needs-human` — but implement **restores** those paths before
+# the builder (its `git add -A` would otherwise commit them), and setup runs only ONCE per job, so a
+# setup output that is also a build input has to be re-created by the gate command itself.
+# `factory doctor` reports this as `runtime.setup-dirties-tree` (WARN) by running setup once in a
+# scratch clone.
+# setup_generated (KTB-43, optional — default empty): globs for files your setup OR your test/gate
+# commands regenerate. The implement stage already knows what setup itself dirtied (it snapshots the
+# tree, KTB-39); this key is for the ones that come back LATER — `flutter test` re-writes the generated
+# plugin registrants that `flutter pub get` wrote. If the builder commits such a file after it has
+# already written its handoff, the branch head no longer matches the handoff's `head_sha` and the
+# transition is refused; the stage drops that commit by itself (`git reset --hard` + a leased
+# force-push) when EVERY file in it is a setup-dirtied path or matches one of these globs. Widen this
+# only for paths no human change should ever land in — a commit that mixes real work with drift is
+# never dropped, it is handed to a person with the file list.
+#   setup_generated = ["client/*/flutter/generated_plugin_*", "client/macos/Flutter/GeneratedPluginRegistrant.swift"]
+# Example, Flutter:
+#   setup = "curl -fsSL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.24.0-stable.tar.xz | tar -xJ -C $HOME && echo \"$HOME/flutter/bin\" >> \"$GITHUB_PATH\" && flutter --version"
+
+[commands]                       # all judged by exit code
+# KTB-40 — **a test that executes this repo's hooks (or any script whose behaviour depends on the
+# factory's env) must isolate the child environment.** Stages run these commands from inside a
+# `claude -p` session whose env carries `FACTORY_STAGE`, `FACTORY_HARNESS_ISSUE` and
+# `CLAUDE_PROJECT_DIR`; a spawn helper that layers `process.env` underneath its own `env` passes all
+# three through, and then the hook under test decides by WHERE the suite ran rather than by what the
+# test said. KTB's own suite does this now (`factory/test/helpers/hook-env.js` → `baseEnv()` +
+# `replaceEnv: true`); do the same in yours, or your gate is green locally and red in CI (or worse:
+# green in both while asserting nothing).
+# lint: plug YOUR linter here (eslint, ruff, golangci-lint, `dart analyze`, …). A command that always
+# exits 0 (`node -e 0`, `true`, `:`) is NOT a gate — doctor FAILs it as `gates.lint-noop`, because a
+# placeholder that reports "lint GREEN" is worse than no lint gate at all (audit P1-7).
+lint       = "npm run lint"
+unit       = "npx vitest run --reporter=json --outputFile=.factory/out/unit.json"
+test_files = "npx vitest run {files}"            # prove-test / new-test-repeat / new-test mutation check
+# new-test mutation check (self-gate, Structure D', spec §4): the DUAL of prove-test. prove-test proves
+# a new test fails WITHOUT the impl; this proves it fails when the asserted PROPERTY is violated. It
+# copies the implementer's UNCOMMITTED changed sources + new tests into a throwaway base worktree,
+# installs deps there ([runtime].setup / lockfile — exactly like prove-test; a source-only worktree has
+# no runner, audit M2), then for each new test: runs it UNMUTATED first (baseline MUST be green — a test
+# that can't load or is red on its own is `skipped` as inconclusive, never judged), then mutates the
+# SOURCE it imports and re-runs via `test_files` above. A `survivor` = baseline green AND a mutation ran
+# cleanly (loaded, reached assertions) AND the test STAYED green (asserts nothing / not fail-closed —
+# own-cal R1 cf1: deleting the safety warning still passed 5/5). A `kill` = baseline green → mutated red
+# by an ASSERTION; a red that is a module-resolution/parse/SyntaxError/transform error is inconclusive
+# for that mutation (it never ran) → the next mutator is tried. It tries ALL applicable mutations (each
+# on FRESH source) — a KILL wins as soon as ANY cleanly-run mutation goes assertion-red; a SURVIVOR is
+# declared only after EVERY cleanly-run mutation was survived (never on the first survived one — a target
+# often carries an unrelated token ordered before the asserted value, and stopping there would falsely
+# brand a fail-closed test vacuous). LIMITS — deliberately UNDER-fires: the mutations are shallow,
+# syntax-preserving text transforms, NOT a semantic engine (no AST, no coverage). The ordered set, each
+# applied to the FIRST eligible occurrence:
+# [1] flip the first boolean literal, [2] invert the first ===/!==/==/!=/<=/>= (bare </> left alone —
+# they collide with generics/arrows), [3] replace the first non-import string literal's contents with a
+# `__MUTATED__` sentinel (swallows template-literal ${…} interpolations), [4] bump the first integer by
+# one, [5] first `&&`→`||`. No resolvable source import, no applicable mutation, or every mutation only
+# red-for-the-wrong-reason → `skipped` with a reason, never a survivor: the check never blocks work on
+# "couldn't mutate". A found survivor is a real signal; the absence of survivors is not proof a test is
+# complete.
+test_one   = "npx vitest run {file} -t {name}"   # classify-failure. Scripts quote {file}/{name} — do not add quotes here
+lint_file  = "npx eslint {file}"
+
+[harness]
+maturity = "M0"                  # M0 | M1 | M2 — promotion is a factory:harness issue + human merge
+
+[factory]
+orchestration   = "workflow"     # workflow | agent
+required_checks = ["factory/gates", "factory/review", "factory/integrity"]
+# max_turns: `claude -p --max-turns` for every stage dispatcher. Integer 3–50 (doctor checks).
+# 12, not 5: with `orchestration = "workflow"` the Workflow tool runs in the BACKGROUND, so the
+# dispatcher spends turns on ① the Workflow call ② the launch receipt ③ the completion notification
+# ④ printing the artifact — plus one per chunk when the notification's <result> is truncated and it
+# has to Read the task output file. 5 cut demo #2's plan at turn 6: 30 min and $12 with no artifact
+# (ADR-020 KTB-16). Raise it per stage below if one stage keeps running out.
+max_turns       = 12
+# upstream (feedback loop, spec §7 — OPTIONAL, empty by default; must be `owner/repo`, nothing else,
+# because it becomes `gh … -R <repo>`): the repo that owns the factory itself, e.g.
+# "LeeHyeonKyu/know_thy_build". On merge, the retro classifies every finding by the INSTALL-MANIFEST
+# OWNER of its causal file and routes the two classes to two different places:
+#   owner: user    (harness.toml, CHARTER.md, scripts/, your own role prompts) → a `factory:harness`
+#                  issue in THIS repo — your problem, you fix it. That arm runs whether or not
+#                  `upstream` is set.
+#   owner: factory (`.factory/**` engine, shipped `.claude/agents/*.md`, templates/defaults) → a
+#                  `factory-improvement` issue in the repo named here. Findings with the same
+#                  fingerprint APPEND evidence to the one open issue instead of opening many.
+# Leave it unset and nothing is ever written to another repo: those findings stay as a comment on the
+# source issue, and no cross-repo call is made at all. Setting it also needs a token that can write
+# issues there — the runner's FACTORY_BOT_TOKEN — which the owner grants; the factory never creates
+# secrets. Keep this key directly under [factory]: put it ABOVE the sub-table below, or it lands in it.
+# upstream = "LeeHyeonKyu/know_thy_build"
+# [factory.max_turns_by_stage]     # per-stage override, wins over max_turns
+# plan = 16
+
+[commands.proof]                 # fill when maturity >= M1
+# coverage        = "npx vitest run --coverage --coverage.reporter=json"
+# coverage_report = ".factory/out/coverage/coverage-final.json"
+# mutation        = "npx stryker run --incremental"
+# mutation_report = "reports/mutation/mutation.json"
+
+[gates]
+# The levels MUST differ (audit H2 — doctor FAILs `gates.levels-identical` otherwise): the whole point of
+# tier→level is that a load-bearing change gets more than a docs change. fast is what every PR pays;
+# full adds the proof gates (`prove-test`: the new tests fail on base; `new-test-repeat`: they are not
+# flaky); deep is where integration/e2e/diff_coverage/mutation go once they are configured.
+# `required` is enforced regardless of the selected level: a required gate that did not run is
+# MISCONFIGURED, not "not asked" (audit H2). So only name gates here that run at EVERY level you use.
+# At maturity M0 every run is capped at `fast` — prove-test/new-test-repeat below never run until M1
+# (doctor WARNs `gates.m0-downgrade`; each run records `downgraded_from`).
+required = ["lint", "unit"]
+fast     = ["lint", "unit"]
+full     = ["lint", "unit", "prove-test", "new-test-repeat"]
+deep     = ["lint", "unit", "prove-test", "new-test-repeat"]   # + "integration"/"e2e"/"diff_coverage"/"mutation" when configured
+# `new-test-repeat` runs its first repeat ALONGSIDE the full suite to see the new tests under load — except when
+# the commands call a toolchain that holds a project lock (flutter/dart test, gradle, cargo, swift, xcodebuild, sbt,
+# mvn): two such runs in one project both fail, so the suite runs first and the repeats after (1.4.15). Set this
+# to force either behaviour: repeat_alongside_suite = false
+
+[gates.thresholds]               # (protected)
+diff_coverage_pct       = 90
+mutation_score_pct      = 70
+new_test_repeats        = 3
+flaky_isolation_runs    = 3
+flaky_base_runs         = 5
+flaky_max               = 2      # per PR: existing tests excusable as `flaky-existing` (audit M3). Above it, all stay RED
+quarantine_max          = 5
+quarantine_max_effective = 3     # per PR: quarantined tests that may flip a gate RED→GREEN (audit M4)
+quarantine_ttl_days     = 28
+quarantine_return_after = 30
+
+[test]
+guide       = "docs/QA.md"
+naming      = "test_{issue}_{slug}"
+smoke       = { unit = "test/smoke.test.ts" }
+runtime_budget_min = 12
+test_glob   = ["test/**/*.test.ts", "test/**/*.test.tsx"]
+source_glob = ["src/**/*.ts", "src/**/*.tsx"]
+unit_report = ".factory/out/unit.json"
+# Every test gate you list in a level needs a JSON report path, or a RED run cannot name its failing tests
+# (flaky-existing classification/exclusion then never runs — doctor WARNs `gates.test-report`, 1.4.25):
+# integration_report = ".factory/out/integration.json"   # e.g. `vitest run --reporter=default --reporter=json --outputFile=.factory/out/integration.json`
+# e2e_report         = ".factory/out/e2e.json"
+
+[test.env]
+# compose   = "docker-compose.test.yml"
+# env_file  = ".env.test"
+# seed      = ""
+# app_start = ""
+# app_ready = "http://localhost:3000/healthz"
+ready_timeout_sec = 90
+
+[test.fakes]
+
+[protected]                      # (protected)
+# 빌드 설정 파일도 보호한다 — [commands]의 게이트 명령(lint/unit/test_files/…)이 전부 이 파일들을
+# 거쳐 해석되므로, 에이전트가 여기를 고치면 "게이트를 통과시키는" 가장 쉬운 길이 코드를 고치는 게
+# 아니라 판정 기준을 고치는 것이 된다(테스트 제외, 린트 규칙 해제, 의존성 교체).
+# 바꿔야 한다면 경로는 하나다: `factory:harness` 이슈 → 사람이 diff를 보고 머지(§5.1).
+#
+# ADR-021 r1 MF-2 c — `.github/**`는 워크플로 파일 일곱 장이 아니라 **디렉터리 전부**다.
+# `.github/workflows/factory-*.yml`만 보호하던 시절에는 다른 이름의 워크플로 한 장(`ci.yml`·`x.yml`)이
+# L1/L2 어디에도 걸리지 않았고, 같은 저장소 브랜치에서 도는 워크플로에는 저장소 시크릿이 그대로
+# 주어지므로 그 한 장이 `FACTORY_MERGE_TOKEN`을 밖으로 실어 나를 수 있었다. `.github/CODEOWNERS`도
+# 같은 이유로 여기 들어온다 — 그 파일이 곧 "누구의 승인이 머지를 여는가"이므로, 그것을 바꾸는 PR은
+# 반드시 사람이 읽고 머지해야 한다.
+# 리뷰 batch-2 MF-3 — 세션 설정 파일은 `**/`로 적는다. Claude Code는 세션이 건드리는 디렉터리의
+# `CLAUDE.md`/`AGENTS.md`를 함께 읽으므로 `docs/CLAUDE.md`·`src/AGENTS.md`도 같은 주입 채널이다.
+# 루트만 적어 두면 그 PR은 L1의 보호 밖이고(자동 머지), tier도 `docs`로 떨어진다 —
+# 재리뷰가 실행해 확인한 그대로다. `**/`는 0개 디렉터리도 맞으므로 루트 파일도 그대로 포함된다.
+factory       = [".factory/**", ".claude/**", ".github/**", "docs/factory/CHARTER.md", "**/CLAUDE*.md", "**/AGENTS*.md", "**/.mcp*.json",
+                 "package.json", "package-lock.json", "vitest.config.*", "playwright.config.*",
+                 "tsconfig*.json", ".eslintrc*", "eslint.config.*"]
+                 # `.factory/out/qa/**`는 qa 리뷰어의 증거물 저장소다 — 판정의 근거가 되는 스크린샷·로그를
+                 # 남길 수 없으면 §5.2.3의 "증거 없는 재현은 일어나지 않은 재현"이 성립하지 않는다.
+except        = [".factory/lessons/**", "docs/factory/runs/**", ".factory/out/qa/**"]
+# ── 리뷰 batch-2 MF-2 — `runner_only`: **러너만 쓰는 경로**(쓰기 경계이지 머지 경계가 아니다) ─────
+# run 기록(`docs/factory/runs/**`)은 머지 스테이지가 리뷰 증거로 읽는 파일이다(`review-evidence:` 한 줄).
+# 재리뷰가 확인한 대로 그 디렉터리는 에이전트 세션이 쓸 수 있었고(`echo … >> docs/factory/runs/7.md` rc=0)
+# `syncRecords`는 그 내용을 그대로 `factory/records`로 민다 — 곧 에이전트가 자기 판정을 미리 적어 둘 수 있었다.
+# `[protected].factory`에 넣을 수는 없다: 그 파일은 러너가 매 스테이지 덧붙이고 사람 없이 머지돼야 한다
+# (그래서 위 `except`에 있다). 그래서 **생성되는 훅 `prot`와 ci-settings deny에만** 들어간다.
+runner_only   = ["docs/factory/runs/**"]
+# ── 2026-09-14 외부 감사 M8 / ADR-023: 이 섹션이 보호 경로의 **단일 출처**다 ─────────────────────
+# `factory init`이 여기서 두 가지를 생성한다: `.claude/hooks/block-dangerous.sh`의 `prot` 정규식과
+# `.factory/ci-settings*.json`의 `Edit(...)`/`Write(...)` deny. 감사 전에는 셋이 손으로 유지되는 별개
+# 목록이었고 실제로 갈라져 있었다(훅은 `.github/workflows/factory-`만 막는데 여기는 `.github/**`).
+# doctor의 `protected.parity`가 드리프트를 FAIL로 잡는다 — 생성물을 손으로 고치지 말고 여기를 고친 뒤
+# `npx know-thy-build factory init --upgrade`를 돌린다.
+#
+# `agent_writable`은 **머지 경계와 쓰기 경계가 갈라지는** 자리다. 위 목록은 "이 경로를 건드린 PR은
+# 사람이 머지한다"(L1)이고, 생성되는 deny/`prot`는 "에이전트 세션이 이 파일을 쓰지 못한다"(L2/훅)다.
+# 둘이 갈라져야 하는 경로 — 사람이 머지해야 하지만 에이전트가 정상 업무로 편집하는 경로 — 만 여기
+# 적는다. 대부분의 저장소는 비어 있다(팩토리 자신을 개발하는 저장소가 예외다).
+agent_writable = []
+# additive_only: 이 두 섹션에 **추가만** 허용한다(§8.1의 다크 경로). 정책이지 변조 판정이 아니므로
+# integrity 체크는 이것으로 RED가 되지 않는다 — 벗어난 편집이 있으면 merge 스테이지가 자동 머지를
+# 거부하고 사람이 머지한다(ADR-020 KTB-6). 그래야 `:role` PR과 역할 파일을 건드리는 업그레이드를
+# 사람이 머지할 수 있다.
+additive_only = { ".claude/agents/*.md" = ["## Examples", "## Perspectives"] }
+tests_are_load_bearing = true
+
+[load_bearing]
+# 되돌리기 어려운 경로 — 스키마·공개 API·결제/인증처럼 "틀리면 되돌릴 수 없는" 코드. 여기 걸리는
+# diff는 tier가 `load-bearing`으로 올라가고(triage가 뭐라 신고했든 — 외부 감사 H3), deep 레벨의
+# 게이트와 가장 넓은 리뷰 로스터를 받는다. `/know-thy-build:harness`가 코드에서 후보를 뽑아 채운다.
+#
+# **설치된 레이아웃 그대로 적는다.** 이 저장소에서 팩토리 코드는 `.factory/lib/…`·`.factory/bin/…`에
+# 산다(팩토리 자신을 개발하는 저장소만 `factory/…`가 소스다) — 남의 레이아웃을 베껴 오면 매치가 0이
+# 되고, 그러면 목록은 그럴듯한데 tier 바닥이 통째로 사라진다. doctor의 `load-bearing.paths-exist`가
+# 매치 0인 항목을 FAIL로, 빈 목록을 WARN으로 잡는다(빈 목록 = 어떤 PR도 load-bearing이 될 수 없다).
+paths = []
+
+[evidence]
+# ── ADR-024 / KTB-42 — 이 글롭은 **주소**이고, 계약은 그 안의 매니페스트다 ──────────────────────
+# qa 리뷰어의 증거는 `.factory/out/qa/<issue>/manifest.json` 하나로 선언된다(`factory.qa-evidence.v1`):
+# `done_when` id마다 claim이 달리고, 종류는 command|log|state|screenshot|not_applicable이다.
+# 쓰는 길은 **도구 하나뿐이다** — `node .factory/bin/qa-evidence.js record|attach|na|finish`
+# (즉흥 리다이렉션 금지: 그 길은 조용히 실패했고, 실패한 자리에서 "증거 없음"은 언제나 빌더를 가리켰다 —
+# 라이브 KTB #3의 implement 8라운드).
+# 최소선은 `[harness].maturity`가 정한다:
+#   M0 — 모든 `done_when` id에 `command`나 `log` claim 하나(또는 **사유가 있는** `not_applicable`)
+#   M1 — 영향 경로가 데이터(마이그레이션·스키마·모델·SQL…)를 건드리면 `state` claim 하나 이상
+#   M2 — UI로 확인되는 `done_when`(level=e2e 또는 ui=true)마다 `screenshot` claim 하나 이상
+# 이 디렉터리는 gitignore다(`.factory/out/`) — 머지 스테이지가 보는 것은 review 런이 run 기록에 남긴
+# `qa_manifest=<sha256>` 한 줄이다. `factory doctor`의 `qa.evidence-probe`가 쓰기 가능 여부를 미리 본다.
+qa_artifacts = ".factory/out/qa/**"

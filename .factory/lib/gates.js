@@ -1,0 +1,742 @@
+import { existsSync, readFileSync } from "node:fs";
+import { isAbsolute, join } from "node:path";
+import { parseVitestJson } from "./parsers/vitest-json.js";
+import { composeEnv } from "./test-env.js";
+import { isQuarantined, recordResult } from "./quarantine.js";
+import { changedFiles } from "./changed-files.js";
+import { matchesAny } from "./glob.js";
+import { classifyFailures } from "./classify-failure.js";
+import { mustNotContract, mustNotViolations, addedLines, fixesTests } from "./integrity.js";
+import { inMirrorFamily, mirrorApplicable } from "./mirror.js";
+import { proveTest, repeatNewTests, proveModeFor, selfReferentialTests, proveFixedTests } from "./prove-test.js";
+import { runDiffCoverage } from "./diff-coverage.js";
+import { mutationGate } from "./mutation.js";
+import { scrubbedRunner } from "./exec.js";
+import { SECRET_ENV, scrubText } from "../bin/scrub-artifacts.js";
+
+const LEVELS = ["fast", "full", "deep"];
+/**
+ * 성숙도별 레벨 상한(§5.2.1). M0은 `fast`가 천장이다 — 막 도입한 저장소가 아직 없는 도구(커버리지·
+ * mutation·e2e)를 요구받아 상시 MISCONFIGURED가 되지 않게 하는 장치다. 대신 그 강등은 **조용하지
+ * 않다**: 판정 파일에 `downgraded_from`이 남고(아래 runGates), doctor가 `gates.m0-downgrade`로 WARN한다
+ * (감사 H2 — 강등이 보이지 않으면 "full/deep에 적어 둔 게이트가 도는 중"이라고 착각하게 된다).
+ */
+const MAX_LEVEL = { M0: "fast", M1: "full", M2: "deep" };
+/**
+ * 명령 게이트가 아니라 **명령 게이트 뒤에** 재는 게이트들. 감사 H2: 예전에는 prove-test와
+ * new-test-repeat가 레벨 목록 밖에서 사후 주입됐고, 그래서 `required`가 그 이름을 부를 수 없었다.
+ * 이제 넷 다 레벨 목록의 정식 멤버다 — 목록에 있으면 SKIPPED 자리를 먼저 잡고, 스테이지가 실제로
+ * 잰 뒤 그 자리를 채운다. 재지 못한 required 증명 게이트는 SKIPPED로 남아 MISCONFIGURED가 된다.
+ */
+const DEFERRED_GATES = new Set(["diff_coverage", "mutation", "prove-test", "new-test-repeat"]);
+const TEST_GATES = new Set(["unit", "integration", "e2e"]);
+/** 한 PR에서 격리가 RED→GREEN으로 뒤집을 수 있는 테스트 수의 상한(감사 M4). */
+export const QUARANTINE_MAX_EFFECTIVE = 3;
+/** 한 PR에서 `flaky-existing`으로 제외할 수 있는 기존 테스트 수의 상한(감사 M3). */
+export const FLAKY_MAX = 2;
+/**
+ * 게이트 판정 → 커밋 상태. GREEN 하나만 success다 — RED도, MISCONFIGURED도, BLOCKED도, 판정이
+ * 아예 없는 것도 success가 아니다(감사 H2: fail-closed의 마지막 한 칸은 "상태를 뭐라고 게시하는가"다).
+ */
+export const commitStatusState = (status) => (status === "GREEN" ? "success" : "failure");
+
+/**
+ * result.gates 맵으로부터 failing/skipped/misconfigured/passed/failed/status를 재계산해
+ * result에 반영하고 그대로 돌려준다 (순수 함수: gates 맵만 보고 판정; 호출자가 gates를
+ * 직접 수정한 뒤에도 다시 불러 일관된 판정을 얻을 수 있다).
+ */
+export const EMPTY_LEVEL = "<level list empty>";
+
+/**
+ * ADR-020 KTB-35 — **exit≠0인데 깨진 테스트는 0개.** 라이브(KTB #3 implement R2, run 34809992796):
+ * `unit`이 code 1로 RED인데 `unit.json`은 1715/1715 통과였다. 그 전 publish CI에서는 vitest가 포크된
+ * 워커의 `console.error`에서 `Error: write EPIPE`로 죽었다 — 테스트는 전부 끝난 뒤였다.
+ *
+ * 판정은 **그대로 RED다**(fail closed — 무엇이 죽였는지 모르는 채 GREEN으로 부르지 않는다). 바뀌는
+ * 것은 사람이 받는 문장이다: `gates RED: failing=unit`은 "테스트가 깨졌다"로 읽히는데 깨진 테스트는
+ * 없었고, 그 오독은 사람을 제품 코드로 보낸다. 그래서 이 게이트는 **왜 RED인지**를 스스로 적고
+ * (`reason`), 원인이 실제로 있는 자리(명령의 stderr 꼬리)를 `log`에 싣는다.
+ */
+export const UNHANDLED_TAIL_LINES = 20;
+export const unhandledReason = (code) => `command exited ${code} with 0 failing tests — unhandled error outside tests (see gate log)`;
+/** stderr(비면 stdout)의 마지막 N줄 — 크리덴셜은 지우고(`scrub-artifacts.js`가 유일한 규칙 출처다). */
+export function unhandledGateLog(stderr, stdout, { env = process.env } = {}) {
+  const text = String(stderr || "").trim() || String(stdout || "");
+  const tail = text.split("\n").slice(-UNHANDLED_TAIL_LINES).join("\n");
+  const secrets = SECRET_ENV.map((n) => env?.[n]).filter((v) => typeof v === "string" && v.length > 0);
+  return scrubText(tail, { secrets }).text.slice(-2000);
+}
+
+/**
+ * ── Feedback loop Task 1 — **왜 RED였는가를 게이트가 스스로 들고 다닌다** (spec §1, §3) ──────────
+ *
+ * 런 레코드가 남기던 게이트 증거는 `FACTORY_GATES: … failing=unit,new-test-repeat` 한 줄, 곧 게이트
+ * **이름**뿐이었다. 어느 테스트가 어떤 문장으로 깨졌는지는 Actions 아티팩트와 `.factory/out/unit.json`
+ * 안에만 있었고 둘 다 7일 뒤 사라진다(이 세션이 실제로 겪은 손실: 원인을 다시 읽을 방법이 없어졌다).
+ * 피드백 루프(Task 2~5)는 그 **뿌리**를 읽어 분류·라우팅하므로, 그것이 records 브랜치에 남지 않으면
+ * 루프 전체가 사라지는 증거 위에 서게 된다 — spec §3 "durable before ephemeral".
+ *
+ * 그래서 RED 게이트마다 additive 필드 `detail`을 단다. **판정은 한 글자도 바뀌지 않는다**: status를
+ * 읽지도 쓰지도 않고, 실패해도(파싱 불가·출력이 이상함) 빈 목록과 메모로 물러난다. 두 가지 경계가
+ * 항상 걸린다 — 꼬리 `DETAIL_TAIL_LINES`줄 / `DETAIL_MAX_CHARS`자, 그리고 스크럽(`scrub-artifacts.js`가
+ * 유일한 규칙 출처다: 런 레코드는 공개 브랜치로 나가므로 크리덴셜이 한 글자도 실리면 안 된다).
+ */
+export const DETAIL_TAIL_LINES = 40;
+export const DETAIL_MAX_CHARS = 4000;
+export const DETAIL_MAX_FAILING = 20;
+export const DETAIL_MAX_NAME = 200;
+/** `reason`(KTB-35 unhandled, broken-base)의 상한 — 그것만이 이 줄의 무한정 자라는 조각이었다(리뷰 MF-1). */
+export const DETAIL_MAX_REASON = 1000;
+/**
+ * 이름 파서가 훑는 줄 수의 상한(리뷰 nit 7). 스니펫은 꼬리 40줄인데 이름은 **출력 전체**에서 찾는다
+ * — 이름이 꼬리 위에 있을 수 있기 때문이다(의도된 비대칭). 그래도 멀티메가 로그에서 비용이 무한정
+ * 늘지 않게 꼬리 쪽 `DETAIL_MAX_SCAN_LINES`줄로 자른다(실패 요약은 언제나 끝에 모인다).
+ */
+export const DETAIL_MAX_SCAN_LINES = 2000;
+/** 런 레코드의 줄 접두사. 뒤는 **한 줄 JSON**이다 — Task 3의 harvester가 `/^gates-detail: (\{.*\})$/`로 읽는다. */
+export const GATES_DETAIL_PREFIX = "gates-detail: ";
+
+/** `scrub-artifacts.js`가 유일한 규칙 출처다 — 이 파일은 자기 정규식을 만들지 않는다. */
+const secretsFrom = (env) => SECRET_ENV.map((n) => (env ?? process.env)?.[n]).filter((v) => typeof v === "string" && v.length > 0);
+const scrubOne = (text, secrets, max) => scrubText(String(text ?? ""), { secrets }).text.slice(0, max);
+
+/**
+ * 러너 출력에서 **알아볼 수 있는** 실패 테스트 이름. 알아보지 못하면 빈 배열이다 — 추측한 이름은
+ * 없는 것보다 나쁘다(Task 2가 그것으로 fingerprint를 만든다: **틀린** 이름은 틀린 지문이 된다).
+ * 네 모양을 읽는다:
+ *   - vitest/jest 요약 표식: `× math > adds` / `✕ adds (3 ms)`
+ *   - jest 절 제목: `● math › adds` — **`suite › test` 모양일 때만**(리뷰 SF-3: `● Validation Error` 같은
+ *     절 제목이 테스트 이름으로 새어 들어왔다)
+ *   - vitest FAIL 줄: ` FAIL  test/a.test.js > math > adds` → 파일 경로를 떼고 테스트 이름만
+ *   - flutter: `00:03 +2 -1: MyWidget shows the title [E]`
+ *   - pytest: `FAILED tests/test_a.py::test_adds - …`(**node id 모양일 때만** — `FAILED build step`은
+ *     테스트가 아니다) / `____ test_adds ____`
+ */
+/** vitest `3ms` / jest `(3 ms)` — **끝에 붙은 단독 지속시간 토큰만** 떼어낸다(리뷰 SF-2). */
+const DURATION_SUFFIX = /\s+\(?\d+(?:\.\d+)?\s?ms\)?$/;
+const FAILING_PATTERNS = [
+  { re: /^\s*[×✕✗]\s+(\S.*?)\s*$/, strip: true },
+  { re: /^\s*●\s+(\S.*?[›>]\s+\S.*?)\s*$/ },
+  { re: /^\s*FAIL\s+\S+\s+>\s+(\S.*?)\s*$/ },
+  { re: /^\s*\d{2}:\d{2}\s+\+\d+(?:\s+~\d+)?\s+-\d+:\s+(.+?)\s+\[E\]\s*$/ },
+  { re: /^\s*FAILED\s+(\S+::\S+)/ },
+  { re: /^\s*_{2,}\s+(\S.*?)\s+_{2,}\s*$/ },
+];
+/** 러너가 절 제목으로 쓰는 문장들 — 테스트 이름이 아니다(리뷰 SF-3). */
+const NOT_A_TEST_NAME = /^(Console|Test suite failed to run|Runtime Error|Validation Error|Deprecation Warning|Cannot find module|Summary of all failing tests)\b/i;
+/** `::`와 `.`은 같은 계층 구분자다 — pytest는 한 실패를 두 철자로 적는다(리뷰 SF-4). */
+const normId = (s) => s.replace(/::/g, ".");
+/** 잘려 나간 지속시간만큼만 다른 두 이름은 같은 실패다(리뷰 SF-2). */
+const ONLY_A_DURATION = /^\s*\(?\d+(?:\.\d+)?\s?m?s\)?$/;
+
+export function parseFailingTests(text) {
+  const names = [];
+  const lines = String(text ?? "").split("\n");
+  for (const line of lines.length > DETAIL_MAX_SCAN_LINES ? lines.slice(-DETAIL_MAX_SCAN_LINES) : lines) {
+    for (const { re, strip } of FAILING_PATTERNS) {
+      const m = re.exec(line);
+      if (!m) continue;
+      const name = (strip ? m[1].replace(DURATION_SUFFIX, "") : m[1]).trim().slice(0, DETAIL_MAX_NAME);
+      if (name && !NOT_A_TEST_NAME.test(name) && !names.includes(name)) names.push(name);
+      break;
+    }
+    if (names.length >= DETAIL_MAX_FAILING * 2) break;
+  }
+  /**
+   * 같은 실패가 두 철자로 잡힌 경우 **긴 쪽만** 남긴다(짧은 쪽을 버린다). 두 가지가 그렇다:
+   *   ① pytest: `tests/a.py::TestX::test_x`와 절 제목 `TestX.test_x`(또는 `test_x`) — `::`를 `.`으로
+   *      정규화한 뒤 접미사로 비교한다.
+   *   ② vitest: `× debounce waits 500ms`의 지속시간 스트립본("debounce waits")과 FAIL 줄의 원본.
+   */
+  const kept = names.filter((n) => !names.some((o) => {
+    if (o === n) return false;
+    const a = normId(n), b = normId(o);
+    if (b !== a && b.endsWith(`.${a}`)) return true;
+    if (o.startsWith(n) && ONLY_A_DURATION.test(o.slice(n.length))) return true;
+    return false;
+  }));
+  return kept.slice(0, DETAIL_MAX_FAILING);
+}
+
+/** stdout+stderr의 **꼬리**(머리가 아니다 — 원인은 끝에 있다), 경계 안에서, 스크럽해서. */
+export function gateFailureSnippet(stdout, stderr, { env = process.env } = {}) {
+  const text = [String(stdout ?? ""), String(stderr ?? "")].filter((s) => s.trim()).join("\n");
+  const tail = text.split("\n").slice(-DETAIL_TAIL_LINES).join("\n");
+  return scrubText(tail, { secrets: secretsFrom(env) }).text.slice(-DETAIL_MAX_CHARS);
+}
+
+/**
+ * 한 RED 게이트의 detail. **절대 던지지 않는다** — 증거 수집의 실패가 스테이지의 실패가 될 수 없다.
+ *
+ * 리뷰 must_fix 1 — **이름도 스크럽한다.** 스니펫은 꼬리 40줄만 남기는데 이름 파서는 출력 전체를
+ * 훑으므로, 머리에만 있던 토큰이 스니펫에서는 제대로 빠지고 `failing`으로는 그대로 새어 나갔다
+ * (파라미터라이즈된 pytest id `test_login[<token>]`가 실제 생산자다). 런 레코드는 만료되지 않는
+ * 공개 브랜치로 나간다 — 스니펫과 **같은 규칙 출처**(`SECRET_ENV` + `scrubText`)로 이름도 지운다.
+ */
+export function gateDetail({ gate, stdout = "", stderr = "", env } = {}) {
+  try {
+    const text = [String(stdout ?? ""), String(stderr ?? "")].join("\n");
+    const secrets = secretsFrom(env);
+    return {
+      gate,
+      failing: parseFailingTests(text).map((n) => scrubOne(n, secrets, DETAIL_MAX_NAME)),
+      snippet: gateFailureSnippet(stdout, stderr, env ? { env } : {}),
+    };
+  } catch (e) {
+    return { gate, failing: [], snippet: "", note: `detail capture failed — ${e?.message || e}` };
+  }
+}
+
+/**
+ * 명령을 돌리지 않은 게이트(prove-test·new-test-repeat·diff_coverage·mutation)의 detail은 그 게이트가
+ * 이미 적어 둔 `log`에서 뽑는다. 이 자리가 바로 `failing=unit,new-test-repeat`의 두 번째 이름이 "무엇을
+ * 말하는지"를 잃던 지점이다. 이미 detail이 있으면 덮지 않는다(명령 게이트는 원본 stdout/stderr를 봤다).
+ */
+export function attachGateDetails(result) {
+  try {
+    for (const [name, g] of Object.entries(result?.gates || {})) {
+      // 1.4.8 — MISCONFIGURED도 사람이 records 브랜치만 보고 이유를 알아야 한다(데모 #58: `misconfigured=prove-test` 한 줄뿐이었다).
+      if (!g || !["RED", "MISCONFIGURED"].includes(g.status) || g.detail) continue;
+      g.detail = gateDetail({ gate: name, stdout: g.log ?? "" });
+    }
+  } catch { /* 증거 수집은 판정을 막지 않는다 */ }
+  return result;
+}
+
+/**
+ * 런 레코드에 실리는 줄들 — RED 게이트마다 한 줄, `gates-detail: {…}` 형태의 **한 줄 JSON**.
+ * 사람이 읽을 수 있고(prefix), 기계가 읽을 수 있다(JSON).
+ *
+ * 키: `gate`, `run_id`, `runner`, `round`(알 때만), `failing[]`, `reason`(게이트가 적었을 때만),
+ * `parsed`(테스트 게이트일 때만 — 리포트를 **실제로 읽었는가**), `code`(명령의 종료 코드, 알 때만),
+ * `snippet`, `note`(증거 수집이 실패했을 때만).
+ *
+ * **`parsed`·`code`가 있는 이유**(T3 리뷰 MF-3): `failing`이 비었다는 사실 하나로는 "왜 빨간지"를
+ * 가를 수 없다 — 테스트가 하나도 안 깨졌는데 빨간 것인지, 명령이 리포트를 쓰기도 전에 죽은 것인지,
+ * 애초에 리포트를 쓰지 않는 게이트(lint·typecheck)인지가 전부 같은 모양이다. 그런데 셋의 **주인이
+ * 다르다**: 첫째는 KTB-35(엔진), 둘째는 채택자의 명령·툴체인(harness), 셋째는 제품 코드다.
+ * `reason`으로는 이것을 가를 수 없다 — `reason`은 **리포트를 읽은 테스트 게이트**에만 붙기 때문에
+ * (위 KTB-35 경로), `flutter: command not found`(exit 127)처럼 리포트가 없는 실패에는 영영 붙지 않는다.
+ * 그래서 판정의 재료를 줄에 싣는다: `parsed === false`는 "명령이 리포트를 남기지 못했다", `code`는
+ * 셸 수준의 실패(127 = 명령 없음, 126 = 실행 불가)를 그대로 말해 준다. 둘 다 이미 게이트 엔트리에
+ * 있던 값이고, 판정은 한 글자도 바뀌지 않는다(additive).
+ *
+ * **`run_id`/`runner`가 있는 이유**(리뷰 provenance): `docs/factory/runs/**`는 no-write 스테이지의
+ * 스크래치 경로라 에이전트 세션이 줄을 덧붙일 수 있고, 정규식 harvester는 **첫 번째** 매치를 집는다 —
+ * `reviewEvidenceLine`이 batch-2 MF-2에서 닫은 바로 그 구멍이다. 줄이 자기를 쓴 런을 지목하면 T3는
+ * 그 런에 묶인 줄만 믿고 나머지는 무시할 수 있다. 모르면 `null`이다 — 없는 값을 지어내지 않는다.
+ *
+ * `reason`·`failing`도 여기서 한 번 더 스크럽·상한한다(멱등이다 — `[REDACTED:…]`는 다시 맞지 않는다):
+ * `detail`을 만든 자리가 어디든 이 줄이 마지막 관문이고, `main is red on …`(broken-base)은 파싱된
+ * 테스트 id 목록이라 이 줄에서 유일하게 상한이 없던 조각이었다(리뷰 MF-1).
+ */
+export function gatesDetailLines(result, { runId = null, runnerId = null, round = null } = {}) {
+  try {
+    const out = [];
+    const secrets = secretsFrom();
+    /**
+     * 1.4.18 (KTB #38) — **test-env re-up 실패도 이 채널로 나간다.** 재-업이 실패하면 게이트는 하나도 돌지 않고
+     * (`status: BLOCKED`, `gates: {}`) run 기록에는 산문 한 줄(`test-env: re-up failed — …`)만 남았다 — 루프의 수확기는
+     * `gates-detail:`만 읽으므로 `[test.env]` 오설정은 분류·지문·집계 어디에도 잡히지 않았다. 같은 한 줄 JSON, 같은
+     * run_id/runner 바인딩으로 `gate: "test-env"`를 싣는다; 수확기는 그것을 `.factory/harness.toml [test.env]`로 보낸다.
+     */
+    const reup = result?.test_env_reup;
+    if (reup?.ran && reup.ok === false) {
+      const detail = String(reup.detail ?? "");
+      out.push(GATES_DETAIL_PREFIX + JSON.stringify({
+        gate: "test-env",
+        run_id: runId ?? null,
+        runner: runnerId ?? null,
+        ...(Number.isInteger(round) ? { round } : {}),
+        failing: [],
+        reason: scrubOne(`test-env re-up failed — ${detail.split("\n")[0]}`, secrets, DETAIL_MAX_REASON),
+        snippet: scrubText(detail.split("\n").slice(-DETAIL_TAIL_LINES).join("\n"), { secrets }).text.slice(-DETAIL_MAX_CHARS),
+      }));
+    }
+    for (const [name, g] of Object.entries(result?.gates || {})) {
+      // 1.4.29 (L35, own-calendar #51/#52) — MISCONFIGURED도 durable 줄을 남긴다: "판정 불가"의 이유(예: prove-test의 base 설치
+      // 실패·판정 불가 임포트)가 아티팩트에만 있으면 아티팩트 쿼터가 찬 날 그 이유는 어디에도 없다.
+      if (!g || !["RED", "MISCONFIGURED"].includes(g.status)) continue;
+      const d = g.detail || gateDetail({ gate: name, stdout: g.log ?? "" });
+      out.push(GATES_DETAIL_PREFIX + JSON.stringify({
+        gate: name,
+        ...(g.status === "MISCONFIGURED" ? { status: "MISCONFIGURED" } : {}),
+        run_id: runId ?? null,
+        runner: runnerId ?? null,
+        ...(Number.isInteger(round) ? { round } : {}),
+        failing: (Array.isArray(d.failing) ? d.failing : []).map((n) => scrubOne(n, secrets, DETAIL_MAX_NAME)),
+        ...(g.reason ? { reason: scrubOne(g.reason, secrets, DETAIL_MAX_REASON) } : {}),
+        // 테스트 게이트에만 있는 필드다 — 없는 게이트에 `parsed: false`를 지어내면 "리포트를 못 썼다"와
+        // "애초에 리포트를 쓰지 않는 게이트다"가 같은 값이 되어 하류가 정확히 반대로 읽는다.
+        ...(typeof g.parsed === "boolean" ? { parsed: g.parsed } : {}),
+        ...(Number.isInteger(g.code) ? { code: g.code } : {}),
+        snippet: String(d.snippet ?? "").slice(-DETAIL_MAX_CHARS),
+        ...(d.note ? { note: d.note } : {}),
+      }));
+    }
+    return out;
+  } catch (e) {
+    return [`${GATES_DETAIL_PREFIX}unavailable — ${e?.message || e}`];
+  }
+}
+
+export function recomputeStatus(result, harness) {
+  const gates = result.gates;
+  const failing = [], skipped = [], misconfigured = [];
+  for (const [name, g] of Object.entries(gates)) {
+    if (g.status === "RED") failing.push(name);
+    else if (g.status === "SKIPPED") skipped.push(name);
+    else if (g.status === "MISCONFIGURED") misconfigured.push(name);
+  }
+  // 레벨 목록이 비어 있으면 "전부 통과"가 아니라 "아무것도 물리지 않았다"다 — GREEN으로 부르지 않는다.
+  const names = harness.gates?.[result.level] || [];
+  const emptyLevel = !names.length;
+  if (emptyLevel) misconfigured.push(EMPTY_LEVEL);
+  /**
+   * 감사 H2 — **required는 레벨 목록보다 강하다.** 예전 규칙은 `names.includes(n)`으로 걸러서,
+   * required에 적혀 있지만 이 레벨 목록에 없는 게이트를 "이 레벨의 확인 대상이 아님"으로 읽었다.
+   * 실측 결과가 그 규칙의 값이다: required 8개 중 다섯 개가 한 번도 돌지 않은 PR이 GREEN이었다.
+   * required는 "이 저장소에서 무엇이 통과해야 머지인가"의 선언이지 레벨별 취향이 아니다 — 적어
+   * 두었으면 어느 레벨이 뽑히든 **돌아서 GREEN이어야** 하고, 돌지 않았으면(목록에 없어서든,
+   * 설정 오류든, SKIPPED로 남았든) 그건 통과가 아니라 MISCONFIGURED다. 레벨을 가볍게 돌리고
+   * 싶으면 required에서 빼야 한다 — 빼는 것은 diff에 남고, 무시되는 것은 아무 데도 남지 않는다.
+   */
+  const requiredMissing = (harness.gates.required || []).filter((n) => misconfigured.includes(n) || skipped.includes(n) || !(n in gates));
+  const passed = Object.values(gates).filter((g) => g.status === "GREEN").length;
+  /**
+   * 감사 H2 — **설정 오류는 통과가 아니다.** 예전에는 `misconfigured`가 차 있어도 required가 아니면
+   * 판정에 영향이 없었다(실측: `status=GREEN misconfigured=prove-test,new-test-repeat,diff_coverage,
+   * mutation`). 설정 오류는 "이 게이트가 무엇을 말하는지 모른다"는 뜻이고, 모르는 것은 GREEN도
+   * RED도 아니다 — 사람이 하네스를 고쳐야 하는 MISCONFIGURED다(exit 2, 커밋 상태는 failure).
+   */
+  const status = misconfigured.length || requiredMissing.length ? "MISCONFIGURED" : failing.length ? "RED" : "GREEN";
+  result.failing = failing;
+  result.skipped = skipped;
+  result.misconfigured = misconfigured;
+  result.required_missing = requiredMissing;
+  result.passed = passed;
+  result.failed = failing.length;
+  result.status = status;
+  return result;
+}
+
+export async function runGates({ run, cwd, harness, level, quarantine, touchedFiles = [], readFile = (p) => (existsSync(p) ? readFileSync(p, "utf8") : null), now = new Date().toISOString() }) {
+  const requested_level = level;
+  const max = MAX_LEVEL[harness.harness?.maturity] || "deep";
+  if (LEVELS.indexOf(level) > LEVELS.indexOf(max)) level = max;
+  const names = harness.gates[level] || [];
+  const gates = {};
+  let tests = null;
+  /**
+   * 감사 M4 — 격리는 "실행은 하되 판정에서만 제외"다. 그 제외에 두 개의 문이 필요하다.
+   * ① **PR이 그 테스트 파일을 건드렸으면 뒤집지 않는다.** 건드린 테스트를 자기가 면제하는 것은
+   *    격리가 아니라 자기 채점이다(격리 목록은 `.factory/quarantine.toml` — PR이 함께 고칠 수 있다).
+   * ② **한 PR에서 뒤집는 개수에 상한이 있다.** 상한이 없으면 격리 목록이 긴 저장소에서 "빨간 테스트가
+   *    전부 목록에 있어서 GREEN"이 성립한다. 상한을 넘긴 시도는 버리는 게 아니라 기록한다.
+   */
+  const touched = new Set(touchedFiles);
+  const maxEffective = harness.gates?.thresholds?.quarantine_max_effective ?? QUARANTINE_MAX_EFFECTIVE;
+  const quarantineApplied = [], quarantineRefused = [];
+  for (const name of names) {
+    // SKIPPED·MISCONFIGURED도 다른 게이트와 같은 모양을 갖는다 — 읽는 쪽이 없는 필드를 추측하지 않게.
+    if (DEFERRED_GATES.has(name)) { gates[name] = entry("SKIPPED", "proof gate — measured after the command gates"); continue; }
+    const cmd = harness.commands[name];
+    if (!cmd) { gates[name] = entry("MISCONFIGURED", `commands.${name} missing`); continue; }
+    const t0 = Date.now();
+    // 1.4.6 — 게이트 명령은 test-env가 올린 compose 프로젝트를 봐야 한다(채택자 테스트의 맨 `docker compose …`).
+    const r = await run("bash", ["-lc", cmd], { cwd, env: composeEnv(harness, cwd) });
+    let status = r.code === 0 ? "GREEN" : "RED";
+    // parsed/failing_ids: 이 게이트의 RED가 "어떤 테스트 때문인지" 아는가. 리포트를 못 읽었으면
+    // (parsed:false) 그 RED의 이유를 모르는 것이고, 나중에 어떤 근거로도 GREEN으로 뒤집으면 안 된다.
+    let reportParsed = false, failing_ids = null, unhandled = false;
+    if (TEST_GATES.has(name)) {
+      const rep = harness.test[`${name}_report`] || `.factory/out/${name}.json`;
+      const reportPath = isAbsolute(rep) ? rep : join(cwd, rep);
+      const report = readFile(reportPath);
+      if (report) {
+        const parsed = parseVitestJson(report, cwd);
+        reportParsed = !parsed.error;
+        failing_ids = parsed.failing.map((f) => f.id);
+        const excluded = [];
+        for (const f of parsed.failing) {
+          if (!isQuarantined(quarantine, f.id)) continue;
+          if (touched.has(f.file)) { quarantineRefused.push({ id: f.id, gate: name, reason: "test file is in this PR's diff" }); continue; }
+          if (quarantineApplied.length >= maxEffective) { quarantineRefused.push({ id: f.id, gate: name, reason: `quarantine cap ${maxEffective} reached for this PR` }); continue; }
+          quarantineApplied.push({ id: f.id, gate: name });
+          excluded.push(f.id);
+        }
+        const remaining = parsed.failing.filter((f) => !excluded.includes(f.id));
+        tests = { ...(tests || { total: 0, passed: 0, failed: 0, failing: [], excluded: [] }) };
+        tests.total += parsed.total; tests.passed += parsed.passed; tests.failed += remaining.length;
+        tests.failing.push(...remaining); tests.excluded.push(...excluded);
+        if (status === "RED" && remaining.length === 0 && parsed.failed > 0) status = "GREEN";   // 실패가 전부 격리 대상
+        // 반대 방향도 막는다: 리포트가 격리 대상이 아닌 실패를 보여주는데 명령이 exit 0이면
+        // (리포터가 삼켰거나 `|| true`가 붙었거나) 그건 통과가 아니다 — 리포트가 이긴다.
+        if (status === "GREEN" && remaining.length > 0) status = "RED";
+        // KTB-35: 리포트를 **실제로 읽었고**(parsed) 그 안의 실패가 0인데 명령이 실패했다 —
+        // 테스트 밖에서 무언가 죽었다는 뜻이다. 리포트를 못 읽은 RED는 이 경로가 아니다(그 RED의
+        // 이유는 "모른다"이지 "테스트 밖 오류"가 아니다 — 아는 것만 말한다).
+        if (status === "RED" && reportParsed && r.code !== 0 && parsed.failed === 0 && parsed.failing.length === 0) unhandled = true;
+      }
+    }
+    gates[name] = {
+      status, code: r.code, duration_ms: Date.now() - t0,
+      log: unhandled ? unhandledGateLog(r.stderr, r.stdout) : (r.stderr + r.stdout).slice(-2000),
+    };
+    if (unhandled) gates[name].reason = unhandledReason(r.code);
+    if (TEST_GATES.has(name)) { gates[name].parsed = reportParsed; gates[name].failing_ids = failing_ids || []; }
+    // Task 1 — RED의 뿌리를 게이트 엔트리에 붙인다(판정 뒤, 판정과 무관하게: additive 필드다).
+    if (status === "RED") {
+      gates[name].detail = gateDetail({ gate: name, stdout: r.stdout, stderr: r.stderr });
+      // 1.4.17 (KTB #40) — **파싱한 리포트가 stdout 파서보다 정확하다.** `vitest --reporter=json --outputFile=…`의 stdout은
+      // "JSON report written to …" 한 줄뿐이라 이름 파서는 빈 목록을 냈고, 실제 실패 2건이 있는 리포트 옆에서 `gates-detail`은
+      // `failing: []`을 남겼다(KTB #36 run 35555844401). 리포트를 읽었으면 그 id(`file::name`)가 이 게이트의 실패 이름이다;
+      // 격리로 제외된 것은 실패가 아니므로 남은 것만 싣는다. 리포트가 없을 때만 stdout 파서의 답을 쓴다.
+      // stdout 파서가 이름을 찾았으면 그대로 둔다(analyze·retro가 그 이름 모양에 기대 있다); 비었을 때만 리포트 id로 채운다.
+      if (TEST_GATES.has(name) && reportParsed && !gates[name].detail.failing?.length && Array.isArray(tests?.failing) && tests.failing.length) {
+        gates[name].detail.failing = tests.failing.map((f) => f.id);
+      }
+    }
+  }
+  const result = { schema: "factory.gates.v1", level, requested_level, downgraded_from: level === requested_level ? null : requested_level, status: null, gates, passed: 0, failed: 0, failing: [], skipped: [], misconfigured: [], tests, quarantine_applied: quarantineApplied, quarantine_refused: quarantineRefused, ran_at: now };
+  return recomputeStatus(result, harness);
+}
+
+/** 명령을 돌리지 않은 게이트 엔트리 — 이유는 log에 싣는다. */
+const entry = (status, log) => ({ status, code: null, duration_ms: 0, log });
+
+/** CHARTER tier → 게이트 레벨. 모르는 tier는 standard처럼 취급한다(약한 쪽으로 기울지 않는다). */
+const LEVEL_OF_TIER = { docs: "fast", standard: "full", "load-bearing": "deep" };
+export const levelForTier = (tier) => LEVEL_OF_TIER[tier] || "full";
+
+export const TIER_ORDER = ["docs", "standard", "load-bearing"];
+/** 모르는 tier는 standard로 정규화한다 — levelForTier와 같은 보수성이다. */
+export const normalizeTier = (t) => (TIER_ORDER.includes(t) ? t : "standard");
+/**
+ * 두 tier 중 **높은 쪽**. 모르는 값은 `normalizeTier`의 보수성으로 "standard"다 — 모르는 값을
+ * 만났을 때 docs(=가장 약한 레벨)로 기우는 것은 자기 신고를 그대로 믿는 것과 같다.
+ * (감사 H3 / Task 4: `lib/context.js`의 `resolveTier`와 `run-stage.js`의 `reviewRoster()`가
+ * triage 자기 신고와 diff 바닥을 이 함수로 합친다 — export된 이유가 그것이다.)
+ */
+export const maxTier = (a, b) => TIER_ORDER[Math.max(TIER_ORDER.indexOf(normalizeTier(a)), TIER_ORDER.indexOf(normalizeTier(b)))];
+const DOC_GLOBS = ["docs/**", "*.md"];
+/**
+ * 외부 감사 M12 — **문서처럼 생겼지만 문서가 아닌 것들.** `DOC_GLOBS`만으로 판정하던 시절
+ * `docs/factory/CHARTER.md`(판정 기준 그 자체)와 `.claude/agents/reviewer-*.md`(리뷰어 프롬프트)의
+ * 변경이 `docs` tier로 떨어졌다 — 그 PR은 fast 레벨에 리뷰어 한 명을 받는다. 곧 "무엇이 통과인가"와
+ * "누가 채점하는가"를 고치는 diff가 가장 가벼운 심사를 받았다.
+ *
+ * 이 목록은 **경로의 모양**으로 그것을 막는다(설정·프롬프트·워크플로·템플릿·팩토리 소스). 여기에
+ * `[protected].factory` 글롭이 더해진다 — 저장소마다 다른 "사람이 머지해야 하는 경로"는 정의상
+ * docs tier가 아니다(그 diff는 사람이 읽어야 하는 diff다). 둘 다 **바닥을 올리기만** 한다.
+ *
+ * 리뷰 batch-2 MF-3 — 깊이 무관 글롭(CLAUDE*.md·AGENTS*.md·.mcp*.json)이 여기 들어온 이유: 그것들은
+ * "문서처럼 생긴" 정도가 아니라 **다음 세션의 지시문**이다. `docs/CLAUDE.md` 한 장이 tier `docs`로
+ * 떨어지면 가장 작은 로스터가 그 PR을 본다 — 리뷰 세션에게 무엇을 승인하라고 적어 놓은 그 파일을.
+ * `[protected].factory`에도 같은 글롭이 있지만 그쪽은 저장소마다 다르다: 이 목록은 **모든 채택자**에게
+ * 같은 바닥을 준다.
+ */
+export const NEVER_DOCS_GLOBS = [".claude/**", "templates/**", ".factory/**", ".github/**", "factory/**",
+  "**/CLAUDE*.md", "**/AGENTS*.md", "**/.mcp*.json"];
+
+/**
+ * diff가 정하는 tier의 **바닥**. tier는 triage 에이전트의 자기 신고이고, 자기 신고는 게이트 레벨을
+ * 낮추는 방향으로 틀릴 수 있다 — 코드를 건드린 PR이 "docs"라고 말해도 docs 레벨로 통과시키지 않는다.
+ * (감사 H3: 이 바닥은 게이트 레벨뿐 아니라 **로스터·계획 라운드**의 출처이기도 하다 — `lib/context.js`.)
+ */
+export function tierFloor({ changed, harness }) {
+  const files = changed?.all || [];
+  const lb = harness.load_bearing?.paths || [];
+  if (files.some((f) => matchesAny(lb, f))) return "load-bearing";
+  const prot = harness.protected?.factory || [];
+  if (files.some((f) => !matchesAny(DOC_GLOBS, f) || matchesAny(NEVER_DOCS_GLOBS, f) || matchesAny(prot, f))) return "standard";
+  return "docs";
+}
+
+const defaultReadFile = (p) => (existsSync(p) ? readFileSync(p, "utf8") : null);
+
+/**
+ * KTB-21 — 데모 #18: qa 리뷰어가 증거 수집 중 `docker compose down`으로 test env를 내렸다(훅이 이제
+ * 막는다 — `hooks/deny-all-writes.sh`). 그런데 리뷰 스테이지의 게이트는 그로부터 28분 뒤 도는데,
+ * 훅은 **그 세션 안의** 명령만 본다 — 다른 경로로(사람이, 이전 잡의 잔해가, 재시작 사이 간극에) env가
+ * 내려가 있어도 훅은 그것을 모른다. 그래서 `[commands]`를 돌리기 **직전**, 여기서 한 번 더 방어한다:
+ * `.factory/bin/test-env.js up`은 멱등이다(docker compose의 `up -d --wait`는 이미 떠 있으면 그대로
+ * 확인만 한다) — 매 게이트 실행 전에 불러도 대가가 없다. `harness.test.env.compose`가 없으면(=이
+ * 하네스가 compose를 쓰지 않으면) 아무 일도 하지 않는다.
+ */
+export async function reUpTestEnv({ run, cwd, harness }) {
+  if (!harness.test?.env?.compose) return { ran: false, ok: true };
+  const r = await run("node", [".factory/bin/test-env.js", "up"], { cwd });
+  return { ran: true, ok: r.code === 0, detail: r.code === 0 ? "" : (r.stderr || r.stdout || "").trim().slice(0, 2000) };
+}
+
+/**
+ * 한 스테이지의 게이트 전체(명령 게이트 + 실패 분류 + prove-test/반복 + 증명 게이트)를 한 번에 돌려
+ * `factory.gates.v1` 결과 하나로 합산한다. run-stage의 `d.gates`와 `bin/gates.js`가 공유하는 유일한 본체.
+ *
+ * - 분류(classifyFailures)는 **implement·review에서만** 한다(review는 1.4.29부터). merge는 분류하지 않는다 — 대신
+ *   merge 스테이지가 PR diff 밖의 테스트만 RED인 결과에 한해 이 함수를 **한 번** 더 부른다(ADR-034, #157:
+ *   `lib/merge-stage.js` `rerunEligibility`). 그 재실행 정책은 여기가 아니라 merge-stage에 산다.
+ * - `blocked`(base 워크트리를 못 만들어 "PR이 깨뜨렸다"를 판정할 수 없음)가 하나라도 있으면
+ *   status를 BLOCKED로 올린다 — GREEN도 RED도 아닌, 사람이 봐야 하는 상태다.
+ */
+export async function runStageGates({ run: injectedRun, cwd, harness, stage, tier, level: levelArg, base, quarantine = { quarantined: [] }, gh, issue, readFile = defaultReadFile, now, saveQuarantine, transitionIssue = null }) {
+  // 이 아래의 **모든** 하위 프로세스는 자격증명 없는 환경에서 돈다(ADR-020 fix round 1). 게이트·
+  // 증명 게이트·분류는 전부 `harness.commands`, 곧 PR이 쓴 코드를 bash로 실행한다 — merge 잡의
+  // 토큰이 그 안에 있으면 게이트 스크립트 한 줄이 4b 검사를 건너뛰고 스스로 머지할 수 있다.
+  // 한 자리에서 감싸는 이유: proveTest·classifyFailures·diff-coverage·mutation이 전부 이 `run`을
+  // 그대로 넘겨받는다(각자 감싸면 새 호출자가 생길 때마다 빠뜨린다). git 호출도 함께 스크럽되지만
+  // git은 이 토큰들을 쓰지 않는다(체크아웃 자격증명은 `.git/config`에 산다).
+  const run = scrubbedRunner(injectedRun);
+
+  // KTB-21: [commands]를 돌리기 전에 re-up을 시도한다 — 실패하면 이 뒤로는 무엇을 돌려도 "죽은 env에
+  // 대고 돈 결과"이므로 아예 돌리지 않는다. GREEN도 RED도 아닌 판정 불가이니 BLOCKED다(merge-stage의
+  // `undecidable()`, 워크트리 판정 불가(KTB-14 r1)와 같은 등급 — 사람이 아니라 재시도가 우선이다).
+  const testEnvReup = await reUpTestEnv({ run, cwd, harness });
+  if (!testEnvReup.ok) {
+    return {
+      schema: "factory.gates.v1", level: levelArg ?? null, requested_level: levelArg ?? null, downgraded_from: null,
+      status: "BLOCKED", blocked_reason: `test-env re-up failed: ${testEnvReup.detail}`, test_env_reup: testEnvReup,
+      gates: {}, passed: 0, failed: 0, failing: [], skipped: [], misconfigured: [], tests: null, quarantine_applied: [], quarantine_refused: [],
+      ran_at: now ?? new Date().toISOString(),
+      tier_declared: tier ?? null, tier_effective: null, tier_source: null, base: base ?? null,
+      head_sha: (await run("git", ["rev-parse", "HEAD"], { cwd })).stdout.trim() || null,
+    };
+  }
+
+  let changed = null;
+  const changedOnce = async () => (changed ||= await changedFiles({ run, cwd, base, harness }));
+
+  // tier는 diff보다 먼저 정해진다 — 그래서 diff로 바닥을 깔고 둘 중 강한 쪽을 쓴다.
+  const declaredTier = normalizeTier(tier);
+  const effectiveTier = maxTier(declaredTier, tierFloor({ changed: await changedOnce(), harness }));
+  const level = levelArg || levelForTier(effectiveTier);
+  // 격리 판정은 diff를 알아야 한다(M4) — 이 PR이 건드린 테스트 파일은 뒤집지 않는다.
+  const result = await runGates({ run, cwd, harness, level, quarantine, touchedFiles: (await changedOnce()).all, readFile, ...(now ? { now } : {}) });
+  result.tier_declared = tier ?? null;
+  result.tier_effective = effectiveTier;
+  result.tier_source = effectiveTier === declaredTier ? "declared" : "promoted-by-diff";
+  result.test_env_reup = testEnvReup;
+  // 이 판정이 **어떤 커밋을, 무엇과 비교해** 내린 것인지 파일 안에 남긴다 — 나중에 다른 head의
+  // 판정이 이 자리에 놓이면 requirements가 잡아낸다(§3.3).
+  result.head_sha = (await run("git", ["rev-parse", "HEAD"], { cwd })).stdout.trim() || null;
+  result.base = base ?? null;
+
+  // 1.4.29 (L34, own-calendar #49) — 리뷰 라운드의 게이트도 flaky 기존 테스트를 재분류한다. 리뷰어 5명이 승인한 PR이 리뷰 런의
+  // integration 게이트에서 이 변경과 무관한 간헐 실패(tests/events.test.ts) 하나로 RED가 되고, 승인 전이가 "gates file status is
+  // RED"로 거부돼 needs-human으로 갔다. implement가 하는 것과 같은 분류(격리 실행·base 실행)를 review도 한다. merge는 분류하지
+  // 않는다(판정 제외·`factory:flaky` 이슈 생성을 머지 경로에 들이지 않는다 — ADR-034가 그 대안을 버린 이유). merge의 대응은 따로다:
+  // RED가 PR diff 밖의 parsed 테스트뿐이면 merge-stage가 이 함수를 한 번 더 부르고, 전체 GREEN일 때만 머지한다(ADR-034, #157).
+  if ((stage === "implement" || stage === "review") && result.tests?.failing?.length) {
+    const { addedTests } = await changedOnce();
+    const cls = await classifyFailures({ run, cwd, harness, failing: result.tests.failing, base, thresholds: harness.gates.thresholds, addedTests });
+    result.classification = cls;
+    const blocked = cls.filter((c) => c.verdict === "blocked");
+    if (blocked.length) {
+      recomputeStatus(result, harness);
+      result.status = "BLOCKED";
+      result.blocked_reason = `cannot classify ${blocked.length} failing test(s): ${blocked[0].evidence?.error || "unknown"}`;
+      return result;
+    }
+    /**
+     * 감사 M3 — **base가 매번 실패하는 테스트는 흔들림이 아니다.** classify-failure가 `broken-base`로
+     * 판정한 것(격리 실행은 통과, base는 5/5 실패)은 이 PR의 잘못이 아니지만 **제외해서도 안 된다**:
+     * 제외하면 main이 빨간 채로 자동 머지가 계속된다. 실패는 그대로 남겨 게이트를 RED로 두고, 왜
+     * RED인지를 게이트가 스스로 적는다("main is red on …") — 사람이 읽고 main을 먼저 고쳐야 한다.
+     */
+    const brokenBase = cls.filter((c) => c.verdict === "broken-base");
+    if (brokenBase.length) {
+      result.broken_base = brokenBase.map((c) => c.id);
+      result.needs_human = true;
+      const reason = `main is red on ${result.broken_base.join(", ")}`;
+      result.broken_base_reason = reason;
+      for (const g of Object.values(result.gates)) {
+        if (g.status === "RED" && (g.failing_ids || []).some((id) => result.broken_base.includes(id))) g.reason = reason;
+      }
+    }
+    /**
+     * 감사 M3 — `flaky-existing` 제외에도 상한이 있다. 한 PR이 기존 테스트 세 개, 네 개를 "원래
+     * 흔들리던 것"으로 밀어내며 통과한다면 그것은 격리가 아니라 판정 포기다. 상한을 넘으면 **하나도**
+     * 제외하지 않는다(부분 제외는 "어느 두 개를 봐준 것인가"라는 임의의 선택을 남긴다).
+     */
+    const flakyAll = cls.filter((c) => c.verdict === "flaky-existing");
+    const flakyMax = harness.gates.thresholds?.flaky_max ?? FLAKY_MAX;
+    const flaky = flakyAll.length > flakyMax ? [] : flakyAll;
+    if (flakyAll.length > flakyMax) {
+      result.flaky_over_cap = { count: flakyAll.length, max: flakyMax };
+      result.needs_human = true;
+    }
+    if (flaky.length) {
+      result.flaky_issues = [];
+      // 같은 테스트로 런마다 새 이슈를 열지 않는다 — 이미 열려 있으면 그 번호를 그대로 쓴다.
+      let open = [];
+      try { open = (await gh?.searchIssues("factory:flaky")) || []; }
+      catch (e) { result.flaky_issue_lookup_error = e?.message || String(e); }
+      for (const c of flaky) {
+        result.tests.excluded.push(c.id);
+        result.tests.failing = result.tests.failing.filter((f) => f.id !== c.id);
+        const title = `flaky: ${c.id}`;
+        const existing = open.find((i) => i.title === title);
+        if (existing) { result.flaky_issues.push(existing.number); continue; }
+        /**
+         * 격리 이슈를 못 만들어도 판정은 계속한다 — gh 실패로 스테이지를 죽이지 않는다.
+         *
+         * KTB-44 / ADR-025 (리뷰 should_fix 3) — 이슈는 **`backlog`로 태어나고**, 큐로 가는 한 걸음은
+         * 다른 모든 큐 전이와 같은 게이트를 지난다. 예전에는 `labels: ["factory:queue", …]`로 바로
+         * 태어나서, 리허설한 적 없는 하네스 위에서도 triage 런이 시작됐다 — 게이트를 통째로 비켜 가는
+         * 유일한 생산 경로였다. 거부되면 이슈는 `backlog`에 남고(사람의 `:next`가 집는다) 그 이유를
+         * 코멘트로 적는다. `harness-request.js`의 하네스 이슈도 #136(S2b)부터 같은 모양이다 — `backlog`로
+         * 태어나 리허설 + 심사를 실은 문을 지나고, 거부되면 `factory-harness-not-queued` 코멘트를 단다.
+         */
+        try {
+          const n = await gh?.createIssue({ title, body: `Detected while implementing #${issue}. evidence: ${JSON.stringify(c.evidence)}`, labels: ["backlog", "factory:flaky"] });
+          result.flaky_issues.push(n);
+          if (n != null) {
+            const t = transitionIssue
+              ? await transitionIssue({ issue: n, to: "factory:queue", reason: `flaky test harvested while implementing #${issue}` })
+              : { ok: false, reason: "no transition wiring in this gate run — the issue stays in backlog" };
+            if (!t?.ok) {
+              (result.flaky_issues_backlogged ??= []).push({ issue: n, reason: t?.reason || "unknown" });
+              try { await gh?.comment(n, `<!-- factory-flaky-not-queued issue=${n} -->\n이 이슈는 \`backlog\`에 머물러 있습니다 — 큐 전이가 거부됐습니다: ${t?.reason || "unknown"}\n\n하네스를 러너에서 한 번 돌린 뒤(\`factory rehearse\`) \`/know-thy-build:next\`로 큐에 넣으세요(ADR-025).`); }
+              catch { /* 기록의 실패가 수확의 실패는 아니다 */ }
+            }
+          }
+        } catch (e) { result.flaky_issues.push(`error: ${e?.message || e}`); }
+      }
+      result.tests.failed = result.tests.failing.length;
+    }
+    // 남은 실패가 없으면(전부 기존 flaky) 테스트 게이트의 RED는 이 변경의 책임이 아니다 —
+    // 단 **그 게이트의 리포트를 실제로 읽었고**, 그 게이트의 실패가 전부 제외 목록에 들어간 경우에만.
+    // 리포트 없이 RED인 게이트(e2e 등)는 이유를 모르므로 절대 뒤집지 않는다.
+    if (result.tests.failing.length === 0) {
+      for (const [n, g] of Object.entries(result.gates)) {
+        if (g.status !== "RED" || !TEST_GATES.has(n) || g.parsed !== true) continue;
+        // Task 1: RED가 아니게 된 게이트는 "왜 RED였는지"도 들고 있지 않는다(낡은 증거는 거짓 증거다).
+        if ((g.failing_ids || []).length && g.failing_ids.every((id) => result.tests.excluded.includes(id))) { g.status = "GREEN"; delete g.detail; }
+      }
+    }
+  }
+
+  if (stage === "implement") {
+    const ch = await changedOnce();
+    // 1.4.14 (KTB #73) — 이슈 본문의 `must_not:` 계약을 diff에 댄다(§integrity.js mustNotContract). 계약이 없으면 게이트도
+    // 없다(required 판정에 끼지 않는다); 있으면 GREEN/RED로 남고, RED는 자기 게이트가 handoff를 막는 이유가 된다 —
+    // "do NOT"이 리뷰 산문이 아니라 러너의 판정이 되는 자리다. 본문을 못 읽으면 계약이 없는 것으로 친다(이유는 남긴다).
+    let issueBody = "";
+    if (issue && gh?.issue) { try { issueBody = (await gh.issue(issue))?.body ?? ""; } catch (e) { result.must_not_body_error = e?.message || String(e); } }
+    const contract = mustNotContract(issueBody);
+    if (contract.touch.length || contract.add.length) {
+      let added = new Map();
+      if (contract.add.length) {
+        const u0 = await run("git", ["diff", "--no-renames", "-U0", `${base}...HEAD`], { cwd });
+        if (u0.code === 0) added = addedLines(u0.stdout);
+        else result.must_not_diff_error = String(u0.stderr || "").trim().slice(0, 200);
+      }
+      /**
+       * 설계 2026-09-30 §8.3 (S3, KTB #130 실측) — KTB 자기 저장소에서 미러 가족(`.factory/{lib,bin,actions}/**`·`.claude/hooks/*.sh`)은
+       * 러너가 `factory/**`에서 생성해 커밋한 것이지 빌더의 변경이 아니다(빌더는 거기 쓸 수 없다). `must_not: touch .factory/**`는
+       * 그 생성물에 대는 계약이 아니라 빌더의 손에 대는 계약이므로, 그 경로는 계약 대조에서 뺀다. 채택자 저장소에서는 그대로다.
+       */
+      const mirrorSelf = mirrorApplicable(cwd);
+      const changedForContract = mirrorSelf ? ch.all.filter((p) => !inMirrorFamily(p)) : ch.all;
+      const excluded = mirrorSelf ? ch.all.length - changedForContract.length : 0;
+      if (mirrorSelf) for (const k of [...added.keys()]) if (inMirrorFamily(k)) added.delete(k);
+      const v = mustNotViolations({ contract, changed: changedForContract, added });
+      const note = excluded ? ` (runner-generated mirror paths excluded: ${excluded})` : "";
+      result.gates["must-not"] = v.length
+        ? { status: "RED", code: null, duration_ms: 0, log: `issue must_not contract violated: ${v.map((x) => `${x.file}: ${x.rule}`).join("; ")}${note}` }
+        : { status: "GREEN", code: null, duration_ms: 0, log: `issue must_not contract holds (touch: ${contract.touch.join(", ") || "-"}; add: ${contract.add.join(", ") || "-"})${note}` };
+    }
+    // 새로 추가된 테스트만이 아니라 **수정된 테스트 파일**도 증명 대상이다 — 기존 파일에 추가된
+    // 케이스도 base에서는 실패해야 한다. 면제는 **실효 tier**로 판단한다(자기 신고 docs로 빠져나갈 수 없게).
+    // 1.4.8 (데모 #57 Dependabot 설정): source_glob·test_glob 어디에도 없는 파일만 바뀐 diff에는 테스트로 증명할 것이
+    // 없다 — "새 테스트가 없다"는 RED가 아니라 "증명할 대상이 없다"는 SKIPPED다(required에 없으면 판정을 막지 않는다).
+    // 1.4.15 (KTB #53) — 이슈 본문 `fixes_tests:`: 기존 테스트를 고친 변경의 증명은 "그 테스트가 base에서 RED, head에서 GREEN"이다
+    // (§prove-test.js proveFixedTests). 목록이 있으면 새 테스트가 없어도 prove-test는 RED가 아니다; 새 테스트도 있으면 둘 다 성립해야 GREEN.
+    const fixed = fixesTests(issueBody);
+    if (effectiveTier !== "docs" && !ch.sources.length && !ch.tests.length) {
+      result.gates["prove-test"] = { status: "SKIPPED", code: null, duration_ms: 0, log: `no source or test files in the diff (${ch.all.length} file(s), none under [test].source_glob/test_glob) — nothing to prove by tests` };
+    } else if (effectiveTier !== "docs" && fixed.length && !ch.tests.length) {
+      const pf = await proveFixedTests({ run, cwd, harness, base, tests: fixed });
+      result.gates["prove-test"] = { status: pf.misconfigured ? "MISCONFIGURED" : pf.ok ? "GREEN" : "RED", code: null, duration_ms: 0, log: pf.detail };
+      if (pf.inconclusive?.length) result.prove_test = { inconclusive: [...pf.inconclusive] };
+    } else if (effectiveTier !== "docs") {
+      // 1.4.9 — 소스는 그대로고 테스트만 늘었으면 특성화 모드(§prove-test.js CHARACTERIZATION): base에서도 통과해야 GREEN.
+      // 1.4.10 (데모 #15): 특성화는 **바뀐 파일이 전부 테스트일 때만**이다. harness.toml·설정 같은 비-소스 파일이 함께 바뀌면
+      // 그 테스트는 그 변경을 증명하려는 것이고(base에서 실패해야 한다), 특성화로 읽으면 정반대 판정이 난다.
+      const mode = proveModeFor(ch);
+      // 1.4.13 (own-calendar #31) — 자기 경로를 단언하는 새 테스트는 prove-test를 돌리기 전에 RED다(§prove-test.js selfReferentialTests):
+      // 그런 테스트가 base에서 실패하는 것은 메커니즘의 부산물이지 이 변경의 증명이 아니다.
+      const selfRef = selfReferentialTests(ch.added.filter((f) => ch.tests.includes(f)), (f) => readFileSync(join(cwd, f), "utf8"));
+      const pt = selfRef.length
+        ? { ok: false, detail: `self-referential test: ${selfRef.map((h) => `${h.file} mentions its own path (\`${h.hit}\`)`).join("; ")} — a test must assert about the product, not about its own file (existence, git tracking, mtime); such assertions fail on the base worktree by construction and prove nothing` }
+        : await proveTest({ run, cwd, harness, base, addedTests: ch.tests, addedFiles: ch.added, mode });
+      result.gates["prove-test"] = { status: pt.misconfigured ? "MISCONFIGURED" : pt.ok ? "GREEN" : "RED", code: null, duration_ms: 0, log: pt.detail };
+      // 새 테스트와 fixes_tests가 함께 있으면 둘 다 성립해야 한다 — 고친 테스트의 RED→GREEN도 같은 게이트에 합산된다.
+      if (fixed.length && !pt.misconfigured) {
+        const pf = await proveFixedTests({ run, cwd, harness, base, tests: fixed });
+        const g = result.gates["prove-test"];
+        result.gates["prove-test"] = { ...g, status: pf.misconfigured ? "MISCONFIGURED" : g.status === "GREEN" && pf.ok ? "GREEN" : "RED", log: `${g.log}; ${pf.detail}` };
+        if (pf.inconclusive?.length) result.prove_test = { inconclusive: [...(result.prove_test?.inconclusive || []), ...pf.inconclusive] };
+      }
+      /*
+       * 감사 M2 — **판정 불가는 판정 결과와 따로 기록된다.** base에서 테스트가 아예 돌지 못한 것은
+       * GREEN(증명됨)도 RED(증명 실패)도 아니라 "이 게이트가 무엇을 말하는지 모른다"이고,
+       * `proveTest`가 그것을 `misconfigured`로 돌려주므로 위 줄에서 이미 MISCONFIGURED다 —
+       * 곧 `recomputeStatus`의 required 규칙에 걸려 이 PR은 절대 GREEN이 되지 않는다.
+       * 여기 남기는 `prove_test.inconclusive[]`는 사람이 "어느 테스트가 그랬는가"를 읽는 자리다.
+       */
+      if (pt.inconclusive?.length) result.prove_test = { inconclusive: [...pt.inconclusive] };
+    }
+    const rp = await repeatNewTests({ run, cwd, harness, addedTests: ch.tests, times: harness.gates.thresholds.new_test_repeats });
+    result.gates["new-test-repeat"] = { status: rp.misconfigured ? "MISCONFIGURED" : rp.ok ? "GREEN" : "RED", code: null, duration_ms: 0, log: rp.detail };
+  }
+  // 증명 게이트는 implement뿐 아니라 review·merge에서도 돈다. 리뷰 라운드 사이에 커밋이 더 붙으므로
+  // implement 런의 커버리지·mutation 점수는 머지될 커밋의 얘기가 아니다 — 매번 다시 잰다(최적화보다 단순함).
+  if (result.skipped.includes("diff_coverage")) {
+    const dc = await runDiffCoverage({ run, cwd, harness, base, readFile });
+    result.gates.diff_coverage = { status: dc.misconfigured ? "MISCONFIGURED" : dc.ok ? "GREEN" : "RED", code: null, duration_ms: 0, log: `pct=${dc.pct} threshold=${dc.threshold} ${dc.detail || ""} uncovered=${JSON.stringify(dc.uncovered || []).slice(0, 500)}` };
+  }
+  if (result.skipped.includes("mutation")) {
+    const ch = await changedOnce();
+    const mu = await mutationGate({ run, cwd, harness, changedSources: ch.sources, readFile });
+    result.gates.mutation = { status: mu.misconfigured ? "MISCONFIGURED" : mu.ok ? "GREEN" : "RED", code: null, duration_ms: 0, log: `score=${mu.score} threshold=${mu.threshold} ${mu.detail || ""}` };
+  }
+  await updateQuarantine({ result, quarantine, stage, saveQuarantine });
+  // Task 1 — 명령 게이트는 자기 stdout/stderr에서 detail을 이미 달았다. 증명 게이트(prove-test·
+  // new-test-repeat·diff_coverage·mutation)는 여기서 자기 `log`로 채운다: `failing=unit,new-test-repeat`의
+  // 두 번째 이름도 records 브랜치만 보고 뜻을 알 수 있어야 한다.
+  attachGateDetails(result);
+  return recomputeStatus(result, harness);
+}
+
+/**
+ * 격리 항목의 복귀 경로. 격리된 테스트는 "계속 실행하되 판정에서만 제외"되므로, 그 실행 결과가
+ * 어딘가에 쌓이지 않으면 `consecutive_passes`는 영원히 0이고 자동 복귀(§5.2.5-⑤)는 죽은 규칙이 된다.
+ * 리포트를 하나도 못 읽었으면 갱신하지 않는다 — 안 돌린 것을 "통과"로 세지 않는다.
+ */
+async function updateQuarantine({ result, quarantine, stage, saveQuarantine }) {
+  if (!saveQuarantine || !["implement", "review"].includes(stage)) return;
+  const ids = (quarantine?.quarantined || []).map((x) => x.id);
+  if (!ids.length) return;
+  const parsedGates = Object.values(result.gates).filter((g) => g.parsed === true);
+  if (!parsedGates.length) return;
+  const failed = new Set(parsedGates.flatMap((g) => g.failing_ids || []));
+  let q = quarantine;
+  const updates = [];
+  for (const id of ids) {
+    const passed = !failed.has(id);
+    q = recordResult(q, id, passed);
+    updates.push({ id, passed, consecutive_passes: q.quarantined.find((x) => x.id === id)?.consecutive_passes ?? 0 });
+  }
+  await saveQuarantine(q);
+  result.quarantine_updates = updates;
+}
+
+const list = (a) => (a && a.length ? a.join(",") : "none");
+export function verdictLine(r) {
+  // broken_base는 있을 때만 붙인다 — "main이 빨갛다"는 이 PR의 결함과 다른 사고이고, 사람이 받는
+  // 한 줄에서 그 구분이 사라지면 리뷰어가 없는 제품 결함을 찾으러 간다(감사 M3).
+  const brokenBase = r.broken_base?.length ? ` broken_base=${list(r.broken_base)}` : "";
+  return `FACTORY_GATES: level=${r.level} status=${r.status} passed=${r.passed} failed=${r.failed} failing=${list(r.failing)} skipped=${list(r.skipped)} misconfigured=${list(r.misconfigured)} excluded=${list(r.tests?.excluded)}${brokenBase}`;
+}

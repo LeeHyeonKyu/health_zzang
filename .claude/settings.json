@@ -1,0 +1,86 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git merge*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(gh api -X PUT /repos/*/branches/*/protection*)"
+    ],
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "NotebookEdit",
+      "Glob",
+      "Grep",
+      "LS",
+      "Agent",
+      "Workflow",
+      "TodoWrite",
+      "Bash(*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/block-dangerous.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/lint-touched.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/stop-guard.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/record-agents.sh"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/record-agents.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/verdict-format.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/stop-guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
