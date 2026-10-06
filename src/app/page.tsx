@@ -36,30 +36,17 @@ export default async function Home() {
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd(weekStart);
 
-      const { data: override } = await supabase
-        .from("weekly_rule")
-        .select("*")
-        .eq("season_id", season.id)
-        .eq("week_start", weekStart)
-        .single();
+      const [{ data: override }, { data: members }, { data: workouts }] = await Promise.all([
+        supabase.from("weekly_rule").select("*").eq("season_id", season.id).eq("week_start", weekStart).single(),
+        supabase.from("profiles").select("id, nickname").eq("crew_id", profile.crew_id),
+        supabase.from("workout").select("user_id, date").eq("season_id", season.id).gte("date", weekStart).lte("date", weekEnd),
+      ]);
 
       rule = {
         target: override?.target_count ?? season.default_target_count,
         penaltyPerMiss: override?.penalty_per_miss ?? season.default_penalty_per_miss,
         rewardPerExtra: override?.reward_per_extra ?? season.default_reward_per_extra,
       };
-
-      const { data: members } = await supabase
-        .from("profiles")
-        .select("id, nickname")
-        .eq("crew_id", profile.crew_id);
-
-      const { data: workouts } = await supabase
-        .from("workout")
-        .select("user_id, date")
-        .eq("season_id", season.id)
-        .gte("date", weekStart)
-        .lte("date", weekEnd);
 
       weekData = (members ?? []).map((m) => {
         const count = workouts?.filter((w) => w.user_id === m.id).length ?? 0;
