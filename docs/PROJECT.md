@@ -164,6 +164,7 @@ date: 2026-10-06
 | 5 | [내 기록 히스토리](features/005.md) | P1 | 1, 2 | backlog |
 | 6 | [크루원 기록 열람](features/006.md) | P1 | 1, 2 | backlog |
 | 7 | [비밀번호 변경](features/007.md) | P1 | 1 | backlog |
+| 8 | [반응형 레이아웃 통일](features/008.md) | P0 | 1 | backlog |
 | | | | | |
 
 **Technical Foundation:** [TECHNICAL.md](TECHNICAL.md)

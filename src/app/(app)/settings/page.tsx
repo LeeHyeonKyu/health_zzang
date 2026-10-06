@@ -34,62 +34,69 @@ export default async function SettingsPage() {
   }
 
   const seasonTab = activeSeason ? (
-    <div className="space-y-4">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-900">{activeSeason.name}</h3>
-          <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-full">진행 중</span>
-        </div>
-        <div className="space-y-2 text-sm text-gray-600">
-          <div className="flex justify-between">
-            <span>시작일</span>
-            <span className="font-medium text-gray-900">{activeSeason.start_date}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>종료일</span>
-            <span className="font-medium text-gray-900">{activeSeason.end_date ?? "미정"}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>경과</span>
-            <span className="font-medium text-gray-900">
-              {Math.ceil((Date.now() - new Date(activeSeason.start_date + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24))}일
-            </span>
-          </div>
-        </div>
-        <EndSeasonButton seasonId={activeSeason.id} />
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-gray-900">{activeSeason.name}</h3>
+        <span className="text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full">진행 중</span>
       </div>
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between py-2 border-b border-gray-50">
+          <span className="text-gray-500">시작일</span>
+          <span className="font-medium text-gray-900">{activeSeason.start_date}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b border-gray-50">
+          <span className="text-gray-500">종료일</span>
+          <span className="font-medium text-gray-900">{activeSeason.end_date ?? "미정"}</span>
+        </div>
+        <div className="flex justify-between py-2 border-b border-gray-50">
+          <span className="text-gray-500">경과</span>
+          <span className="font-medium text-gray-900">
+            {Math.ceil((Date.now() - new Date(activeSeason.start_date + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24))}일
+          </span>
+        </div>
+        <div className="flex justify-between py-2">
+          <span className="text-gray-500">기본 규칙</span>
+          <span className="font-medium text-gray-900">
+            주 {activeSeason.default_target_count}회 / 미달 {activeSeason.default_penalty_per_miss.toLocaleString()}원
+          </span>
+        </div>
+      </div>
+      <EndSeasonButton seasonId={activeSeason.id} />
     </div>
   ) : (
-    <div>
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <h3 className="text-lg font-bold text-gray-900 mb-2">새 시즌 시작</h3>
       <p className="text-sm text-gray-500 mb-4">시즌을 시작하면 운동 인증과 벌금 집계가 시작됩니다.</p>
       <CreateSeasonForm />
     </div>
   );
 
   const rulesTab = activeSeason ? (
-    <SeasonRulesForm
-      seasonId={activeSeason.id}
-      defaultValues={{
-        default_target_count: activeSeason.default_target_count,
-        default_penalty_per_miss: activeSeason.default_penalty_per_miss,
-        default_reward_per_extra: activeSeason.default_reward_per_extra,
-      }}
-      weekStart={weekStart}
-      currentOverride={currentOverride ? {
-        target_count: currentOverride.target_count,
-        penalty_per_miss: currentOverride.penalty_per_miss,
-        reward_per_extra: currentOverride.reward_per_extra,
-      } : null}
-    />
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <SeasonRulesForm
+        seasonId={activeSeason.id}
+        defaultValues={{
+          default_target_count: activeSeason.default_target_count,
+          default_penalty_per_miss: activeSeason.default_penalty_per_miss,
+          default_reward_per_extra: activeSeason.default_reward_per_extra,
+        }}
+        weekStart={weekStart}
+        currentOverride={currentOverride ? {
+          target_count: currentOverride.target_count,
+          penalty_per_miss: currentOverride.penalty_per_miss,
+          reward_per_extra: currentOverride.reward_per_extra,
+        } : null}
+      />
+    </div>
   ) : (
-    <div className="text-center py-8 text-gray-500">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-center py-12 text-gray-500">
       <p>시즌을 먼저 시작해주세요.</p>
     </div>
   );
 
   const accountTab = (
-    <div>
-      <h3 className="text-sm font-bold text-gray-900 mb-3">비밀번호 변경</h3>
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <h3 className="text-base font-bold text-gray-900 mb-4">비밀번호 변경</h3>
       <ChangePasswordForm />
     </div>
   );
