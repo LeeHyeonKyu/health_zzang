@@ -10,11 +10,11 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("nickname, crew_id")
-    .eq("id", user.id)
-    .single();
+  // profile + 모든 시즌을 한 번에 가져오기 (crew_id를 몰라도 profiles에서 join)
+  const [{ data: profile }, { data: allSeasons }] = await Promise.all([
+    supabase.from("profiles").select("nickname, crew_id").eq("id", user.id).single(),
+    supabase.from("season").select("*").eq("is_active", true),
+  ]);
 
   const displayName = profile?.nickname ?? user.email;
 
@@ -23,29 +23,22 @@ export default async function Home() {
   let rule = { target: 0, penaltyPerMiss: 0, rewardPerExtra: 0 };
 
   if (profile?.crew_id) {
-    const { data: season } = await supabase
-      .from("season")
-      .select("*")
-      .eq("crew_id", profile.crew_id)
-      .eq("is_active", true)
-      .single();
+    activeSeason = allSeasons?.find((s) => s.crew_id === profile.crew_id) ?? null;
 
-    activeSeason = season;
-
-    if (season) {
+    if (activeSeason) {
       const weekStart = getWeekStart();
       const weekEnd = getWeekEnd(weekStart);
 
       const [{ data: override }, { data: members }, { data: workouts }] = await Promise.all([
-        supabase.from("weekly_rule").select("*").eq("season_id", season.id).eq("week_start", weekStart).single(),
+        supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id).eq("week_start", weekStart).single(),
         supabase.from("profiles").select("id, nickname").eq("crew_id", profile.crew_id),
-        supabase.from("workout").select("user_id, date").eq("season_id", season.id).gte("date", weekStart).lte("date", weekEnd),
+        supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id).gte("date", weekStart).lte("date", weekEnd),
       ]);
 
       rule = {
-        target: override?.target_count ?? season.default_target_count,
-        penaltyPerMiss: override?.penalty_per_miss ?? season.default_penalty_per_miss,
-        rewardPerExtra: override?.reward_per_extra ?? season.default_reward_per_extra,
+        target: override?.target_count ?? activeSeason.default_target_count,
+        penaltyPerMiss: override?.penalty_per_miss ?? activeSeason.default_penalty_per_miss,
+        rewardPerExtra: override?.reward_per_extra ?? activeSeason.default_reward_per_extra,
       };
 
       weekData = (members ?? []).map((m) => {
