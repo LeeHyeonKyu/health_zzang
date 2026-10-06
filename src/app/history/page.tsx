@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getWorkoutsWithMedia } from "@/lib/workouts";
 import WorkoutCard from "@/components/workout-card";
 
@@ -28,7 +29,7 @@ export default async function HistoryPage() {
     <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">📝 내 기록</h1>
-        <a href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</a>
+        <Link href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
       </header>
 
       {seasons && seasons.length > 1 && (
@@ -44,7 +45,7 @@ export default async function HistoryPage() {
       {workouts.length === 0 ? (
         <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
           <p>아직 인증 기록이 없습니다.</p>
-          <a href="/workout/new" className="text-blue-600 hover:underline text-sm mt-2 inline-block">운동 인증하기</a>
+          <Link href="/workout/new" className="text-blue-600 hover:underline text-sm mt-2 inline-block">운동 인증하기</Link>
         </div>
       ) : (
         <div className="space-y-3">

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
 import { getWorkoutsWithMedia } from "@/lib/workouts";
 import WorkoutCard from "@/components/workout-card";
 
@@ -41,7 +42,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
         <h1 className="text-xl font-bold">
           {memberProfile.nickname}{isMe ? " (나)" : ""}의 기록
         </h1>
-        <a href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</a>
+        <Link href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
       </header>
 
       {seasons && seasons.length > 1 && (

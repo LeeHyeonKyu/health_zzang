@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [id, setId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,12 +16,14 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    if (!email || !password) {
-      setError("이메일과 비밀번호를 모두 입력해주세요.");
+    if (!id || !password) {
+      setError("ID와 비밀번호를 모두 입력해주세요.");
       return;
     }
 
     setLoading(true);
+
+    const email = id.includes("@") ? id : `${id}@crew.com`;
 
     const { error: authError } = await supabase.auth.signInWithPassword({
       email,
@@ -29,7 +31,7 @@ export default function LoginPage() {
     });
 
     if (authError) {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+      setError("ID 또는 비밀번호가 올바르지 않습니다.");
       setLoading(false);
       return;
     }
@@ -44,12 +46,12 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-center mb-8">💪 Health Zzang</h1>
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="ID"
+            value={id}
+            onChange={(e) => setId(e.target.value)}
             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-            autoComplete="email"
+            autoComplete="username"
           />
           <input
             type="password"
