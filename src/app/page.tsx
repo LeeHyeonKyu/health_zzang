@@ -82,17 +82,17 @@ export default async function Home() {
       </header>
 
       <nav className="flex gap-2 mb-6">
-        <Link href="/workout/new" className="px-3 py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors">🏋️ 인증하기</Link>
-        <Link href="/history" className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">📝 내 기록</Link>
-        <Link href="/season" className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">📊 시즌</Link>
-        <Link href="/settings" className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">⚙️ 설정</Link>
+        <Link href="/workout/new" prefetch={false} className="px-3 py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors">🏋️ 인증하기</Link>
+        <Link href="/history" prefetch={false} className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">📝 내 기록</Link>
+        <Link href="/season" prefetch={false} className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">📊 시즌</Link>
+        <Link href="/settings" prefetch={false} className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">⚙️ 설정</Link>
       </nav>
 
       <main>
         {!activeSeason ? (
           <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
             <p>현재 진행 중인 시즌이 없습니다.</p>
-            <Link href="/settings" className="text-blue-600 hover:underline text-sm mt-2 inline-block">새 시즌 시작하기</Link>
+            <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block">새 시즌 시작하기</Link>
           </div>
         ) : (
           <div className="space-y-4">
@@ -117,7 +117,7 @@ export default async function Home() {
                       className={`border-b last:border-0 ${d.userId === user.id ? "bg-yellow-50" : ""}`}
                     >
                       <td className="py-2 px-3">
-                        <Link href={`/members/${d.userId}`} className="hover:underline">
+                        <Link href={`/members/${d.userId}`} prefetch={false} className="hover:underline">
                           {d.nickname}
                           {d.userId === user.id && " (나)"}
                         </Link>

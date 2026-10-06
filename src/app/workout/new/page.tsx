@@ -109,7 +109,7 @@ export default function NewWorkoutPage() {
     <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">🏋️ 운동 인증</h1>
-        <Link href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
+        <Link href="/" prefetch={false} className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4">

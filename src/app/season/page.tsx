@@ -33,11 +33,11 @@ export default async function SeasonPage() {
       <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
         <header className="flex items-center justify-between mb-8">
           <h1 className="text-xl font-bold">📊 시즌</h1>
-          <Link href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
+          <Link href="/" prefetch={false} className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
         </header>
         <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
           <p>아직 시즌이 없습니다.</p>
-          <Link href="/settings" className="text-blue-600 hover:underline text-sm mt-2 inline-block">새 시즌 시작하기</Link>
+          <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block">새 시즌 시작하기</Link>
         </div>
       </div>
     );
@@ -103,7 +103,7 @@ export default async function SeasonPage() {
     <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
       <header className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">📊 시즌</h1>
-        <Link href="/" className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
+        <Link href="/" prefetch={false} className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
       </header>
 
       <div className="mb-4">
