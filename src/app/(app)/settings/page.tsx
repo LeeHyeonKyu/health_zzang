@@ -1,20 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import Link from "next/link";
 import CreateSeasonForm from "./create-season-form";
 import EndSeasonButton from "./end-season-button";
 import SeasonRulesForm from "./season-rules-form";
 import ChangePasswordForm from "./change-password-form";
 import SettingsTabs from "./settings-tabs";
-import { getWeekStart, formatDate } from "@/lib/utils";
+import { getWeekStart } from "@/lib/utils";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
-  if (!profile) redirect("/login");
+  if (!profile) return null;
 
   const { data: activeSeason } = await supabase
     .from("season")
@@ -102,14 +100,5 @@ export default async function SettingsPage() {
     { id: "account", label: "내 계정", content: accountTab },
   ];
 
-  return (
-    <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
-      <header className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-        <h1 className="text-2xl font-bold tracking-tight">⚙️ 설정</h1>
-        <Link href="/" prefetch={false} className="text-sm font-medium text-blue-600 hover:underline">← 대시보드</Link>
-      </header>
-
-      <SettingsTabs tabs={tabs} />
-    </div>
-  );
+  return <SettingsTabs tabs={tabs} />;
 }

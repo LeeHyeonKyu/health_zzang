@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -17,10 +16,10 @@ interface WeekPenalty {
 export default async function SeasonPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) return null;
 
   const { data: profile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
-  if (!profile) redirect("/login");
+  if (!profile) return null;
 
   const { data: seasons } = await supabase
     .from("season")
@@ -30,15 +29,9 @@ export default async function SeasonPage() {
 
   if (!seasons || seasons.length === 0) {
     return (
-      <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
-        <header className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-bold">📊 시즌</h1>
-          <Link href="/" prefetch={false} className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
-        </header>
-        <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
-          <p>아직 시즌이 없습니다.</p>
-          <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block">새 시즌 시작하기</Link>
-        </div>
+      <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+        <p className="text-gray-500">아직 시즌이 없습니다.</p>
+        <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block font-medium">새 시즌 시작하기 →</Link>
       </div>
     );
   }
@@ -100,12 +93,7 @@ export default async function SeasonPage() {
   const grandTotal = memberTotals.reduce((sum, m) => sum + m.total, 0);
 
   return (
-    <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">📊 시즌</h1>
-        <Link href="/" prefetch={false} className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
-      </header>
-
+    <>
       <div className="mb-4">
         <select
           className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900"
@@ -119,7 +107,7 @@ export default async function SeasonPage() {
         </select>
       </div>
 
-      <section className="bg-white border rounded-lg p-4 mb-4">
+      <section className="bg-white border rounded-xl shadow-sm p-4 mb-4">
         <h2 className="font-semibold mb-3">시즌 누적 벌금</h2>
         <table className="w-full text-sm">
           <thead>
@@ -147,7 +135,7 @@ export default async function SeasonPage() {
         </table>
       </section>
 
-      <section className="bg-white border rounded-lg p-4">
+      <section className="bg-white border rounded-xl shadow-sm p-4">
         <h2 className="font-semibold mb-3">주별 기록</h2>
         <div className="space-y-3">
           {weeks.slice().reverse().map((week) => {
@@ -183,7 +171,7 @@ export default async function SeasonPage() {
           })}
         </div>
       </section>
-    </div>
+    </>
   );
 }
 

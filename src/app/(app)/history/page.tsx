@@ -1,50 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getWorkoutsWithMedia } from "@/lib/workouts";
 import WorkoutCard from "@/components/workout-card";
 
-export default async function MemberPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: memberId } = await params;
+export default async function HistoryPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) return null;
 
-  const { data: memberProfile } = await supabase
-    .from("profiles")
-    .select("id, nickname, crew_id")
-    .eq("id", memberId)
-    .single();
-
-  if (!memberProfile) notFound();
-
-  const { data: myProfile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
-  if (!myProfile || myProfile.crew_id !== memberProfile.crew_id) notFound();
+  const { data: profile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
+  if (!profile) return null;
 
   const { data: seasons } = await supabase
     .from("season")
     .select("id, name, is_active")
-    .eq("crew_id", memberProfile.crew_id)
+    .eq("crew_id", profile.crew_id)
     .order("start_date", { ascending: false });
 
   const activeSeason = seasons?.find((s) => s.is_active);
   const selectedSeasonId = activeSeason?.id;
 
   const workouts = selectedSeasonId
-    ? await getWorkoutsWithMedia(supabase, memberId, selectedSeasonId)
+    ? await getWorkoutsWithMedia(supabase, user.id, selectedSeasonId)
     : [];
 
-  const isMe = memberId === user.id;
-
   return (
-    <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">
-          {memberProfile.nickname}{isMe ? " (나)" : ""}의 기록
-        </h1>
-        <Link href="/" prefetch={false} className="text-sm text-blue-600 hover:underline">← 대시보드</Link>
-      </header>
-
+    <>
       {seasons && seasons.length > 1 && (
         <div className="mb-4">
           <select className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" defaultValue={selectedSeasonId}>
@@ -56,8 +37,9 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
       )}
 
       {workouts.length === 0 ? (
-        <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
-          <p>아직 인증 기록이 없습니다.</p>
+        <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+          <p className="text-gray-500">아직 인증 기록이 없습니다.</p>
+          <Link href="/workout/new" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block font-medium">운동 인증하기 →</Link>
         </div>
       ) : (
         <div className="space-y-3">
@@ -66,6 +48,6 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
