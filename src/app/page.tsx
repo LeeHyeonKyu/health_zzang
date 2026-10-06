@@ -10,7 +10,6 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // profile + 모든 시즌을 한 번에 가져오기 (crew_id를 몰라도 profiles에서 join)
   const [{ data: profile }, { data: allSeasons }] = await Promise.all([
     supabase.from("profiles").select("nickname, crew_id").eq("id", user.id).single(),
     supabase.from("season").select("*").eq("is_active", true),
@@ -53,59 +52,62 @@ export default async function Home() {
 
   return (
     <div className="min-h-dvh px-4 py-6 max-w-lg mx-auto">
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">💪 Health Zzang</h1>
+      <header className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+        <h1 className="text-2xl font-bold tracking-tight">💪 Health Zzang</h1>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">{displayName}</span>
+          <span className="text-sm font-medium text-gray-600">{displayName}</span>
           <LogoutButton />
         </div>
       </header>
 
-      <nav className="flex gap-2 mb-6">
-        <Link href="/workout/new" prefetch={false} className="px-3 py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors">🏋️ 인증하기</Link>
-        <Link href="/history" prefetch={false} className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">📝 내 기록</Link>
-        <Link href="/season" prefetch={false} className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">📊 시즌</Link>
-        <Link href="/settings" prefetch={false} className="px-3 py-2 rounded bg-gray-100 text-sm hover:bg-gray-200 transition-colors">⚙️ 설정</Link>
+      <nav className="grid grid-cols-4 gap-2 mb-6">
+        <Link href="/workout/new" prefetch={false} className="flex items-center justify-center px-2 py-2.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors">인증하기</Link>
+        <Link href="/history" prefetch={false} className="flex items-center justify-center px-2 py-2.5 rounded-lg bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">내 기록</Link>
+        <Link href="/season" prefetch={false} className="flex items-center justify-center px-2 py-2.5 rounded-lg bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">시즌</Link>
+        <Link href="/settings" prefetch={false} className="flex items-center justify-center px-2 py-2.5 rounded-lg bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">설정</Link>
       </nav>
 
       <main>
         {!activeSeason ? (
-          <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
-            <p>현재 진행 중인 시즌이 없습니다.</p>
-            <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block">새 시즌 시작하기</Link>
+          <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+            <p className="text-gray-500 text-base">현재 진행 중인 시즌이 없습니다.</p>
+            <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-3 inline-block font-medium">새 시즌 시작하기 →</Link>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
-              <span className="font-semibold">{activeSeason.name}</span> — 이번 주: {rule.target}회 이상 / 미달 {rule.penaltyPerMiss.toLocaleString()}원
-              {rule.rewardPerExtra > 0 && ` / 초과 -${rule.rewardPerExtra.toLocaleString()}원`}
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800">
+              <p className="font-bold text-base mb-1">{activeSeason.name}</p>
+              <p>이번 주 목표: <span className="font-semibold">{rule.target}회</span> · 미달 <span className="font-semibold">{rule.penaltyPerMiss.toLocaleString()}원</span>/회
+              {rule.rewardPerExtra > 0 && <> · 초과 <span className="font-semibold text-green-700">-{rule.rewardPerExtra.toLocaleString()}원</span>/회</>}</p>
             </div>
 
-            <div className="bg-white border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="text-left py-2 px-3">크루원</th>
-                    <th className="text-center py-2 px-3">인증</th>
-                    <th className="text-right py-2 px-3">벌금</th>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">크루원</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">인증</th>
+                    <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">벌금</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {weekData.map((d) => (
                     <tr
                       key={d.userId}
-                      className={`border-b last:border-0 ${d.userId === user.id ? "bg-yellow-50" : ""}`}
+                      className={`${d.userId === user.id ? "bg-yellow-50" : "hover:bg-gray-50"} transition-colors`}
                     >
-                      <td className="py-2 px-3">
-                        <Link href={`/members/${d.userId}`} prefetch={false} className="hover:underline">
+                      <td className="py-3 px-4">
+                        <Link href={`/members/${d.userId}`} prefetch={false} className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline">
                           {d.nickname}
-                          {d.userId === user.id && " (나)"}
+                          {d.userId === user.id && <span className="text-xs text-gray-400 ml-1">(나)</span>}
                         </Link>
                       </td>
-                      <td className="py-2 px-3 text-center font-mono">
-                        {d.count}/{rule.target}
+                      <td className="py-3 px-4 text-center">
+                        <span className={`text-sm font-mono font-semibold ${d.count >= rule.target ? "text-green-600" : "text-gray-900"}`}>
+                          {d.count}<span className="text-gray-400">/{rule.target}</span>
+                        </span>
                       </td>
-                      <td className={`py-2 px-3 text-right font-mono ${d.penalty > 0 ? "text-red-600" : d.penalty < 0 ? "text-green-600" : "text-gray-400"}`}>
+                      <td className={`py-3 px-4 text-right text-sm font-mono font-semibold ${d.penalty > 0 ? "text-red-600" : d.penalty < 0 ? "text-green-600" : "text-gray-400"}`}>
                         {formatCurrency(d.penalty)}
                       </td>
                     </tr>
