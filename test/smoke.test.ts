@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 describe("smoke", () => {
-  it("app page module loads without throwing", async () => {
-    const mod = await import("../src/app/(app)/page");
+  it("records page module loads without throwing", async () => {
+    const mod = await import("../src/app/(app)/records/page");
     expect(mod).toBeDefined();
     expect(mod.default).toBeDefined();
   });

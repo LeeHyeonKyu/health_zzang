@@ -94,7 +94,7 @@ export default function NewWorkoutPage() {
         throw new Error(data.error?.message ?? "인증 등록 실패");
       }
 
-      router.push("/");
+      router.push("/records");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다");

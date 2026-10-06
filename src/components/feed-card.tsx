@@ -1,5 +1,4 @@
 import { formatDate } from "@/lib/utils";
-import Link from "next/link";
 
 interface MediaItem {
   r2_key: string;
@@ -13,9 +12,10 @@ interface Props {
   date: string;
   note: string | null;
   media: MediaItem[];
+  onMemberClick?: () => void;
 }
 
-export default function FeedCard({ nickname, userId, date, note, media }: Props) {
+export default function FeedCard({ nickname, date, note, media, onMemberClick }: Props) {
   const firstMedia = media[0];
 
   return (
@@ -36,9 +36,13 @@ export default function FeedCard({ nickname, userId, date, note, media }: Props)
       )}
       <div className="p-4">
         <div className="flex items-center justify-between mb-1">
-          <Link href={`/members/${userId}`} prefetch={false} className="text-sm font-bold text-gray-900 hover:text-blue-600">
-            {nickname}
-          </Link>
+          {onMemberClick ? (
+            <button onClick={onMemberClick} className="text-sm font-bold text-gray-900 hover:text-blue-600">
+              {nickname}
+            </button>
+          ) : (
+            <span className="text-sm font-bold text-gray-900">{nickname}</span>
+          )}
           <span className="text-xs text-gray-400">{formatDate(date)}</span>
         </div>
         {note && <p className="text-sm text-gray-600 mt-1">{note}</p>}
