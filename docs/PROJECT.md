@@ -163,6 +163,7 @@ date: 2026-10-06
 | 4 | [시즌 관리](features/004.md) | P0 | 1 | backlog |
 | 5 | [내 기록 히스토리](features/005.md) | P1 | 1, 2 | backlog |
 | 6 | [크루원 기록 열람](features/006.md) | P1 | 1, 2 | backlog |
+| 7 | [비밀번호 변경](features/007.md) | P1 | 1 | backlog |
 | | | | | |
 
 **Technical Foundation:** [TECHNICAL.md](TECHNICAL.md)

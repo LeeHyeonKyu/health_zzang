@@ -4,6 +4,7 @@ import Link from "next/link";
 import CreateSeasonForm from "./create-season-form";
 import EndSeasonButton from "./end-season-button";
 import WeeklyRuleForm from "./weekly-rule-form";
+import ChangePasswordForm from "./change-password-form";
 import { getWeekStart } from "@/lib/utils";
 
 export default async function SettingsPage() {
@@ -76,6 +77,10 @@ export default async function SettingsPage() {
           <CreateSeasonForm />
         </section>
       )}
+      <section className="bg-white border rounded-lg p-4 mt-6">
+        <h2 className="font-semibold mb-3">비밀번호 변경</h2>
+        <ChangePasswordForm />
+      </section>
     </div>
   );
 }
