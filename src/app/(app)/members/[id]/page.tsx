@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { getWorkoutsWithMedia } from "@/lib/workouts";
-import WorkoutCard from "@/components/workout-card";
+import MemberContent from "./member-content";
 
 export default async function MemberPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: memberId } = await params;
@@ -36,32 +36,10 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
   const isMe = memberId === user.id;
 
   return (
-    <>
-      <h2 className="text-lg font-bold mb-4">
-        {memberProfile.nickname}{isMe ? " (나)" : ""}의 기록
-      </h2>
-
-      {seasons && seasons.length > 1 && (
-        <div className="mb-4">
-          <select className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" defaultValue={selectedSeasonId}>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}{s.is_active ? " (진행 중)" : ""}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {workouts.length === 0 ? (
-        <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-          <p className="text-gray-500">아직 인증 기록이 없습니다.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {workouts.map((w) => (
-            <WorkoutCard key={w.id} date={w.date} note={w.note} media={w.media} />
-          ))}
-        </div>
-      )}
-    </>
+    <MemberContent
+      nickname={memberProfile.nickname}
+      isMe={isMe}
+      workouts={workouts}
+    />
   );
 }

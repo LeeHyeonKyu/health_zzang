@@ -36,9 +36,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="max-w-screen-sm md:max-w-screen-md mx-auto px-2 py-2">
           <div className="grid grid-cols-5 gap-1">
             <NavItem href="/" icon="🏠" label="홈" />
+            <NavItem href="/feed" icon="📷" label="피드" />
             <NavItem href="/workout/new" icon="💪" label="인증" />
             <NavItem href="/history" icon="📝" label="내 기록" />
-            <NavItem href="/season" icon="📊" label="시즌" />
             <NavItem href="/settings" icon="⚙️" label="설정" />
           </div>
         </div>

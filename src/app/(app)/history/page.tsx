@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import { getWorkoutsWithMedia } from "@/lib/workouts";
-import WorkoutCard from "@/components/workout-card";
+import HistoryContent from "./history-content";
 
 export default async function HistoryPage() {
   const supabase = await createClient();
@@ -24,30 +23,5 @@ export default async function HistoryPage() {
     ? await getWorkoutsWithMedia(supabase, user.id, selectedSeasonId)
     : [];
 
-  return (
-    <>
-      {seasons && seasons.length > 1 && (
-        <div className="mb-4">
-          <select className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" defaultValue={selectedSeasonId}>
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}{s.is_active ? " (진행 중)" : ""}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {workouts.length === 0 ? (
-        <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-          <p className="text-gray-500">아직 인증 기록이 없습니다.</p>
-          <Link href="/workout/new" prefetch={false} className="text-blue-600 hover:underline text-sm mt-2 inline-block font-medium">운동 인증하기 →</Link>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {workouts.map((w) => (
-            <WorkoutCard key={w.id} date={w.date} note={w.note} media={w.media} />
-          ))}
-        </div>
-      )}
-    </>
-  );
+  return <HistoryContent workouts={workouts} />;
 }
