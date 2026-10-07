@@ -17,7 +17,7 @@ export async function getUploadUrl(key: string, contentType: string): Promise<st
     ContentType: contentType,
   });
 
-  return getSignedUrl(s3, command, { expiresIn: 600 });
+  return getSignedUrl(s3, command, { expiresIn: 3600 });
 }
 
 export async function getReadUrl(key: string): Promise<string> {

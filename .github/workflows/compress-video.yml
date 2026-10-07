@@ -1,0 +1,98 @@
+name: Compress Video
+
+on:
+  repository_dispatch:
+    types: [compress-video]
+
+jobs:
+  compress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download from R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          KEYS='${{ toJson(github.event.client_payload.r2_keys) }}'
+          mkdir -p input output
+          echo "$KEYS" | jq -r '.[]' | while read key; do
+            echo "Downloading $key"
+            aws s3 cp "s3://$R2_BUCKET/$key" "input/$(basename "$key")" \
+              --endpoint-url "$R2_ENDPOINT"
+          done
+
+      - name: Compress videos
+        run: |
+          KEYS='${{ toJson(github.event.client_payload.r2_keys) }}'
+          echo "$KEYS" | jq -r '.[]' | while read key; do
+            BASENAME=$(basename "$key")
+            OUTNAME="${BASENAME%.*}.mp4"
+
+            SIZE=$(stat -c%s "input/$BASENAME" 2>/dev/null || echo 0)
+            if [ "$SIZE" -lt 5242880 ]; then
+              echo "Skipping $key (${SIZE} bytes, under 5MB)"
+              cp "input/$BASENAME" "output/$OUTNAME"
+              continue
+            fi
+
+            echo "Compressing $key (${SIZE} bytes)"
+            ffmpeg -i "input/$BASENAME" \
+              -vf "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease" \
+              -c:v libx264 -preset fast -b:v 1M \
+              -c:a aac -b:a 128k \
+              -movflags +faststart \
+              -y "output/$OUTNAME" 2>&1 | tail -5
+
+            NEWSIZE=$(stat -c%s "output/$OUTNAME" 2>/dev/null || echo 0)
+            echo "Compressed: ${SIZE} -> ${NEWSIZE} bytes"
+          done
+
+      - name: Upload compressed to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          KEYS='${{ toJson(github.event.client_payload.r2_keys) }}'
+          echo "$KEYS" | jq -r '.[]' | while read key; do
+            BASENAME=$(basename "$key")
+            OUTNAME="${BASENAME%.*}.mp4"
+            DIR=$(dirname "$key")
+            NEWKEY="$DIR/$OUTNAME"
+
+            echo "Uploading compressed to $NEWKEY"
+            aws s3 cp "output/$OUTNAME" "s3://$R2_BUCKET/$NEWKEY" \
+              --endpoint-url "$R2_ENDPOINT" \
+              --content-type "video/mp4"
+
+            if [ "$key" != "$NEWKEY" ]; then
+              echo "Removing original $key"
+              aws s3 rm "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" || true
+            fi
+          done
+
+      - name: Update DB
+        env:
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          KEYS='${{ toJson(github.event.client_payload.r2_keys) }}'
+          echo "$KEYS" | jq -r '.[]' | while read key; do
+            BASENAME=$(basename "$key")
+            OUTNAME="${BASENAME%.*}.mp4"
+            DIR=$(dirname "$key")
+            NEWKEY="$DIR/$OUTNAME"
+            NEWSIZE=$(stat -c%s "output/$OUTNAME" 2>/dev/null || echo 0)
+
+            echo "Updating DB: $key -> $NEWKEY ($NEWSIZE bytes)"
+            curl -s -X PATCH "$SUPABASE_URL/rest/v1/media?r2_key=eq.$key" \
+              -H "apikey: $SUPABASE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_KEY" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d "{\"r2_key\": \"$NEWKEY\", \"size_bytes\": $NEWSIZE, \"type\": \"video\"}"
+          done

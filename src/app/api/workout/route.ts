@@ -50,6 +50,13 @@ export async function POST(request: NextRequest) {
       size_bytes: m.size_bytes,
     }));
     await supabase.from("media").insert(mediaInserts);
+
+    const videoKeys = media.filter((m) => m.type === "video").map((m) => m.r2_key);
+    if (videoKeys.length > 0) {
+      triggerVideoCompression(videoKeys).catch((err) =>
+        console.error("Video compression dispatch failed:", err)
+      );
+    }
   }
 
   revalidatePath("/records");
@@ -113,4 +120,25 @@ export async function DELETE(request: NextRequest) {
   revalidatePath("/stats");
 
   return NextResponse.json({ success: true });
+}
+
+async function triggerVideoCompression(r2Keys: string[]) {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return;
+
+  await fetch(
+    "https://api.github.com/repos/LeeHyeonKyu/health_zzang/dispatches",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        event_type: "compress-video",
+        client_payload: { r2_keys: r2Keys },
+      }),
+    }
+  );
 }
