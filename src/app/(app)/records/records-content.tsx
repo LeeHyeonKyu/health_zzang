@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
 import WorkoutDetail from "@/components/workout-detail";
-import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, toDateStr, todayStr } from "@/lib/utils";
+import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, getWeekEnd, toDateStr, todayStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
 type ViewMode = "weekly" | "monthly" | "feed";
@@ -215,6 +215,7 @@ export default function RecordsContent({
       {viewMode === "feed" && (
         <FeedView
           items={filteredFeed}
+          seasonStartDate={seasonStartDate ?? ""}
           onMemberClick={setSelectedMember}
           onCardClick={setDetailItem}
         />
@@ -370,10 +371,12 @@ function MonthlyView({
 
 function FeedView({
   items,
+  seasonStartDate,
   onMemberClick,
   onCardClick,
 }: {
   items: FeedItem[];
+  seasonStartDate: string;
   onMemberClick: (id: string) => void;
   onCardClick: (item: FeedItem) => void;
 }) {
@@ -385,20 +388,38 @@ function FeedView({
     );
   }
 
+  let lastWeekLabel = "";
+
   return (
     <div className="space-y-4">
-      {items.map((item) => (
-        <FeedCard
-          key={item.id}
-          nickname={item.nickname}
-          userId={item.userId}
-          date={item.date}
-          note={item.note}
-          media={item.media}
-          onMemberClick={() => onMemberClick(item.userId)}
-          onCardClick={() => onCardClick(item)}
-        />
-      ))}
+      {items.map((item) => {
+        const weekStart = getWeekStartDate(new Date(item.date + "T00:00:00"));
+        const ws = toDateStr(weekStart);
+        const label = `${formatWeekLabel(seasonStartDate, ws)} (${formatDateShort(ws)} ~ ${formatDateShort(getWeekEnd(ws))})`;
+        const showDivider = label !== lastWeekLabel;
+        lastWeekLabel = label;
+
+        return (
+          <div key={item.id}>
+            {showDivider && (
+              <div className="flex items-center gap-3 py-2">
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 whitespace-nowrap">{label}</span>
+                <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+              </div>
+            )}
+            <FeedCard
+              nickname={item.nickname}
+              userId={item.userId}
+              date={item.date}
+              note={item.note}
+              media={item.media}
+              onMemberClick={() => onMemberClick(item.userId)}
+              onCardClick={() => onCardClick(item)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

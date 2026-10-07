@@ -35,11 +35,9 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick, o
     scrollRef.current.scrollTo({ left: index * scrollRef.current.clientWidth, behavior: "smooth" });
   }
 
-  if (media.length === 0) return null;
-
   return (
     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-      <div className="relative">
+      {media.length > 0 && <div className="relative">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
@@ -87,7 +85,7 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick, o
             </div>
           </>
         )}
-      </div>
+      </div>}
 
       <div className={`p-4 ${onCardClick ? "cursor-pointer" : ""}`} onClick={onCardClick}>
         <div className="flex items-center justify-between mb-1">
