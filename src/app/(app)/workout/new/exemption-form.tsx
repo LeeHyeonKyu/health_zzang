@@ -113,7 +113,7 @@ export default function ExemptionForm({ currentWeekStart, weekLabel, existingExe
         onChange={(e) => setReason(e.target.value)}
         placeholder="사유를 입력하세요 (예: 감기, 출장)"
         rows={2}
-        className="w-full px-3 py-2 rounded-lg border border-teal-200 dark:border-teal-700 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 resize-none"
+        className="input-base resize-none"
       />
 
       <div>

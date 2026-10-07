@@ -47,15 +47,15 @@ export default function WeeklyRuleForm({ seasonId, weekStart, defaultValues }: P
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="text-xs text-gray-500">목표 횟수</label>
-          <input name="target_count" type="number" min="1" defaultValue={defaultValues.target_count} required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <input name="target_count" type="number" min="1" defaultValue={defaultValues.target_count} required className="input-base" />
         </div>
         <div>
           <label className="text-xs text-gray-500">미달 벌금(원)</label>
-          <input name="penalty_per_miss" type="number" min="0" step="1000" defaultValue={defaultValues.penalty_per_miss} required className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <input name="penalty_per_miss" type="number" min="0" step="1000" defaultValue={defaultValues.penalty_per_miss} required className="input-base" />
         </div>
         <div>
           <label className="text-xs text-gray-500">초과 차감(원)</label>
-          <input name="reward_per_extra" type="number" min="0" step="1000" defaultValue={defaultValues.reward_per_extra} className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900" />
+          <input name="reward_per_extra" type="number" min="0" step="1000" defaultValue={defaultValues.reward_per_extra} className="input-base" />
         </div>
       </div>
       {message && <p className="text-sm text-green-600">{message}</p>}

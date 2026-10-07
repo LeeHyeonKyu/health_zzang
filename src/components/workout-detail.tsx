@@ -134,7 +134,7 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
                 value={editDate}
                 max={today}
                 onChange={(e) => setEditDate(e.target.value)}
-                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-[#111] text-gray-900 dark:text-gray-100"
+                className="input-base mt-1"
               />
             </div>
             <div>
@@ -143,7 +143,7 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
                 value={editNote}
                 onChange={(e) => setEditNote(e.target.value)}
                 rows={3}
-                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-[#111] text-gray-900 dark:text-gray-100 resize-none"
+                className="input-base mt-1 resize-none"
               />
             </div>
             {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}

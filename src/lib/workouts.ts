@@ -62,7 +62,7 @@ export async function getCrewFeedWithMedia(
   let query = supabase
     .from("workout")
     .select("id, date, note, user_id")
-    .order("created_at", { ascending: false })
+    .order("date", { ascending: false })
     .limit(limit);
 
   if (seasonId) {

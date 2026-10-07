@@ -54,7 +54,7 @@ export default function LoginPage() {
             placeholder="ID"
             value={id}
             onChange={(e) => setId(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+            className="input-base py-3 px-4"
             autoComplete="username"
           />
           <input
@@ -62,7 +62,7 @@ export default function LoginPage() {
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+            className="input-base py-3 px-4"
             autoComplete="current-password"
           />
           {error && (
