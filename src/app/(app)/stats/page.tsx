@@ -5,6 +5,7 @@ import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } f
 import { formatCurrency, toDateStr } from "@/lib/utils";
 import { calcMemberPenalties } from "@/lib/penalty";
 import Ranking from "./ranking";
+import WeeklyPenalty from "./weekly-penalty";
 
 export default async function StatsPage() {
   const user = await getUser();
@@ -42,7 +43,7 @@ export default async function StatsPage() {
   const daysElapsed = Math.max(1, Math.ceil((now - new Date(activeSeason.start_date + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24)));
   const weeksElapsed = Math.max(1, Math.ceil(daysElapsed / 7));
 
-  const penaltyResults = calcMemberPenalties({
+  const penaltyInput = {
     seasonStartDate: activeSeason.start_date,
     seasonEndDate: activeSeason.end_date,
     defaultTargetCount: activeSeason.default_target_count,
@@ -57,7 +58,9 @@ export default async function StatsPage() {
       reward_per_extra: r.reward_per_extra,
     })),
     exemptions: exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start })),
-  });
+  };
+
+  const penaltyResults = calcMemberPenalties(penaltyInput);
 
   const memberStats = penaltyResults.map((p) => {
     const dates = new Set(
@@ -71,11 +74,16 @@ export default async function StatsPage() {
       nickname: p.nickname,
       count,
       totalPenalty: p.totalPenalty,
+      totalWorkouts: p.totalWorkouts,
+      exemptedWeeks: p.exemptedWeeks,
       avgPerWeek: Math.round((count / weeksElapsed) * 10) / 10,
     };
   });
 
   const myStats = memberStats.find((m) => m.id === user.id);
+  const grandTotal = penaltyResults.reduce((sum, p) => sum + p.totalPenalty, 0);
+  const cumulativeSorted = [...memberStats].sort((a, b) => b.totalPenalty - a.totalPenalty);
+
   const myDates = [...new Set(
     allWorkouts
       .filter((w) => w.user_id === user.id || (w.tagged_with ?? []).includes(user.id))
@@ -101,6 +109,7 @@ export default async function StatsPage() {
 
   return (
     <div className="space-y-4">
+      {/* 시즌 요약 */}
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl p-4">
         <h2 className="text-base font-bold text-blue-800 dark:text-blue-200 mb-2">{activeSeason.name}</h2>
         <div className="grid grid-cols-3 gap-3 text-center">
@@ -119,6 +128,7 @@ export default async function StatsPage() {
         </div>
       </div>
 
+      {/* 내 통계 */}
       {myStats && (
         <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
           <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">내 통계</h3>
@@ -145,7 +155,54 @@ export default async function StatsPage() {
         </div>
       )}
 
+      {/* 크루 랭킹 */}
       <Ranking members={memberStats} currentUserId={user.id} />
+
+      {/* 시즌 벌금 합계 */}
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">시즌 벌금 합계</h3>
+          <span className={`text-sm font-mono font-bold ${grandTotal > 0 ? "text-red-600 dark:text-red-400" : grandTotal < 0 ? "text-green-600 dark:text-green-400" : "text-gray-400"}`}>
+            {formatCurrency(grandTotal)}
+          </span>
+        </div>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-2">완료된 주까지의 누적 (진행 중인 주 제외, 면제 주 제외)</p>
+        <div className="space-y-1">
+          {cumulativeSorted.map((m) => (
+            <div key={m.id} className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-xs ${m.id === user.id ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}>
+              <span className="font-medium text-gray-900 dark:text-gray-100">
+                {m.nickname}{m.id === user.id && <span className="text-gray-400 ml-0.5">(나)</span>}
+                {m.exemptedWeeks > 0 && <span className="text-[10px] text-teal-600 dark:text-teal-400 ml-1">🏥{m.exemptedWeeks}주</span>}
+              </span>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-gray-500 dark:text-gray-400">{m.totalWorkouts}회</span>
+                <span className={`font-mono font-semibold ${m.totalPenalty > 0 ? "text-red-500 dark:text-red-400" : m.totalPenalty < 0 ? "text-green-500 dark:text-green-400" : "text-gray-400"}`}>
+                  {formatCurrency(m.totalPenalty)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 주별 벌금 상세 */}
+      <WeeklyPenalty
+        currentUserId={user.id}
+        seasonStartDate={activeSeason.start_date}
+        seasonEndDate={activeSeason.end_date}
+        defaultTargetCount={activeSeason.default_target_count}
+        defaultPenaltyPerMiss={activeSeason.default_penalty_per_miss}
+        defaultRewardPerExtra={activeSeason.default_reward_per_extra}
+        members={members.map((m) => ({ id: m.id, nickname: m.nickname }))}
+        workouts={allWorkouts.map((w) => ({ user_id: w.user_id, date: w.date, tagged_with: w.tagged_with ?? [] }))}
+        weeklyRules={(weeklyRules ?? []).map((r) => ({
+          week_start: r.week_start,
+          target_count: r.target_count,
+          penalty_per_miss: r.penalty_per_miss,
+          reward_per_extra: r.reward_per_extra,
+        }))}
+        exemptions={exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start, reason: e.reason }))}
+      />
     </div>
   );
 }
