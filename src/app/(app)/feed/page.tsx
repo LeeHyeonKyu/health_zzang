@@ -6,6 +6,8 @@ import { getReadUrl } from "@/lib/r2";
 import FeedContent from "./feed-content";
 import Link from "next/link";
 
+const INITIAL_LIMIT = 20;
+
 export default async function FeedPage() {
   const user = await getUser();
   if (!user) redirect("/login");
@@ -30,7 +32,7 @@ export default async function FeedPage() {
   const supabase = await createClient();
 
   const [feedItems, { data: avatarProfiles }] = await Promise.all([
-    getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id),
+    getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id, INITIAL_LIMIT + 1),
     supabase.from("profiles").select("id, avatar_r2_key").eq("crew_id", profile.crew_id).not("avatar_r2_key", "is", null),
   ]);
 
@@ -41,10 +43,22 @@ export default async function FeedPage() {
     }
   }
 
+  const initialHasMore = feedItems.length > INITIAL_LIMIT;
+  const initialItems = feedItems.slice(0, INITIAL_LIMIT);
+  const lastItem = initialItems[initialItems.length - 1];
+  const initialNextCursor = initialHasMore && lastItem ? `${lastItem.date}_${lastItem.id}` : null;
+
+  // Compute lastFeedDates from all workouts (need a broader query for badge ordering)
+  const { data: allWorkoutDates } = await supabase
+    .from("workout")
+    .select("user_id, date")
+    .eq("season_id", activeSeason.id)
+    .order("date", { ascending: false });
+
   const lastFeedDates: Record<string, string> = {};
-  for (const item of feedItems) {
-    if (!lastFeedDates[item.userId] || item.date > lastFeedDates[item.userId]) {
-      lastFeedDates[item.userId] = item.date;
+  for (const w of allWorkoutDates ?? []) {
+    if (!lastFeedDates[w.user_id]) {
+      lastFeedDates[w.user_id] = w.date;
     }
   }
 
@@ -52,7 +66,9 @@ export default async function FeedPage() {
     <FeedContent
       currentUserId={user.id}
       members={members.map((m) => ({ id: m.id, nickname: m.nickname }))}
-      feedItems={feedItems}
+      initialItems={initialItems}
+      initialNextCursor={initialNextCursor}
+      initialHasMore={initialHasMore}
       seasonStartDate={activeSeason.start_date}
       avatarMap={avatarMap}
       lastFeedDates={lastFeedDates}
