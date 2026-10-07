@@ -21,11 +21,11 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick }:
   return (
     <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
       {firstMedia && (
-        <div className="aspect-[4/3] bg-gray-100 dark:bg-[#111] relative">
+        <div className={`bg-gray-100 dark:bg-[#111] relative ${firstMedia.type === "photo" ? "aspect-[4/3]" : "aspect-video"}`}>
           {firstMedia.type === "photo" ? (
             <img src={firstMedia.url} alt="" className="w-full h-full object-cover" loading="lazy" />
           ) : (
-            <video src={firstMedia.url} className="w-full h-full object-cover" controls preload="metadata" />
+            <video src={firstMedia.url} className="w-full h-full object-contain bg-black" controls preload="metadata" />
           )}
           {media.length > 1 && (
             <span className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">

@@ -179,11 +179,11 @@ export default function WorkoutForm({ crewMembers }: Props) {
       {files.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           {files.map((f, i) => (
-            <div key={i} className="relative aspect-square rounded overflow-hidden bg-gray-100 dark:bg-gray-800">
+            <div key={i} className={`relative rounded overflow-hidden bg-gray-100 dark:bg-gray-800 ${f.type === "photo" ? "aspect-square" : "aspect-video"}`}>
               {f.type === "photo" ? (
                 <img src={f.preview} alt="" className="w-full h-full object-cover" />
               ) : (
-                <video src={f.preview} className="w-full h-full object-cover" />
+                <video src={f.preview} className="w-full h-full object-contain bg-black" />
               )}
               <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
                 {f.type === "video" ? "🎬 " : ""}{formatFileSize(f.file.size)}

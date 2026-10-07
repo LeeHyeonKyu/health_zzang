@@ -18,11 +18,11 @@ export default function WorkoutCard({ date, note, media }: Props) {
       {media.length > 0 && (
         <div className={`grid gap-1 ${media.length === 1 ? "grid-cols-1" : media.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
           {media.map((m) => (
-            <a key={m.r2_key} href={m.url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-gray-100 dark:bg-[#111]">
+            <a key={m.r2_key} href={m.url} target="_blank" rel="noopener noreferrer" className={`block bg-gray-100 dark:bg-[#111] ${m.type === "photo" ? "aspect-square" : "aspect-video"}`}>
               {m.type === "photo" ? (
                 <img src={m.url} alt="" className="w-full h-full object-cover" loading="lazy" />
               ) : (
-                <video src={m.url} className="w-full h-full object-cover" controls preload="metadata" />
+                <video src={m.url} className="w-full h-full object-contain bg-black" controls preload="metadata" />
               )}
             </a>
           ))}
