@@ -99,11 +99,11 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
             <button
               type="button"
               onClick={() => setApplyToPast(!applyToPast)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${applyToPast ? "bg-blue-600" : "bg-gray-300"}`}
+              className={`relative w-10 h-5 rounded-full transition-colors ${applyToPast ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"}`}
             >
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${applyToPast ? "translate-x-5" : ""}`} />
             </button>
-            <span className="text-xs text-gray-600">이전 주에도 소급 적용</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">이전 주에도 소급 적용</span>
           </label>
 
           {defaultMessage && <p className={`text-sm ${defaultMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>{defaultMessage}</p>}
@@ -122,8 +122,8 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
                 {editingWeek === week.weekStart ? (
                   <form onSubmit={(e) => handleWeekSubmit(e, week.weekStart)} className="space-y-3">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-900">{week.weekLabel}</span>
-                      <button type="button" onClick={() => setEditingWeek(null)} className="text-xs text-gray-400 hover:text-gray-600">취소</button>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{week.weekLabel}</span>
+                      <button type="button" onClick={() => setEditingWeek(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">취소</button>
                     </div>
                     <RuleInputs prefix="" defaults={{ target_count: week.target_count, penalty_per_miss: week.penalty_per_miss, reward_per_extra: week.reward_per_extra }} />
                     {weekMessage && <p className={`text-sm ${weekMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>{weekMessage}</p>}
@@ -134,7 +134,7 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
                 ) : (
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-sm font-medium text-gray-900">{week.weekLabel}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{week.weekLabel}</span>
                       <span className="text-xs text-gray-500 ml-2">
                         {week.target_count}회 / {week.penalty_per_miss.toLocaleString()}원
                         {week.reward_per_extra > 0 && ` / -${week.reward_per_extra.toLocaleString()}원`}
@@ -157,24 +157,24 @@ function RuleInputs({ prefix, defaults }: { prefix: string; defaults: { target_c
   return (
     <div className="grid grid-cols-3 gap-2">
       <div>
-        <label className="text-xs text-gray-500">주간 목표</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">주간 목표</label>
         <div className="relative mt-1">
-          <input name={`${prefix}target_count`} type="number" min="1" defaultValue={defaults.target_count} required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">회</span>
+          <input name={`${prefix}target_count`} type="number" min="1" defaultValue={defaults.target_count} required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">회</span>
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-500">미달 벌금</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">미달 벌금</label>
         <div className="relative mt-1">
-          <input name={`${prefix}penalty_per_miss`} type="number" min="0" step="1000" defaultValue={defaults.penalty_per_miss} required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
+          <input name={`${prefix}penalty_per_miss`} type="number" min="0" step="1000" defaultValue={defaults.penalty_per_miss} required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">원</span>
         </div>
       </div>
       <div>
-        <label className="text-xs text-gray-500">초과 차감</label>
+        <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">초과 차감</label>
         <div className="relative mt-1">
-          <input name={`${prefix}reward_per_extra`} type="number" min="0" step="1000" defaultValue={defaults.reward_per_extra} className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
+          <input name={`${prefix}reward_per_extra`} type="number" min="0" step="1000" defaultValue={defaults.reward_per_extra} className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">원</span>
         </div>
       </div>
     </div>

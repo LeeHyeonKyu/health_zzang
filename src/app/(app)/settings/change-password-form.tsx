@@ -50,7 +50,7 @@ export default function ChangePasswordForm() {
         placeholder="새 비밀번호 (6자 이상)"
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}
-        className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900"
+        className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
         autoComplete="new-password"
       />
       <input
@@ -58,11 +58,11 @@ export default function ChangePasswordForm() {
         placeholder="비밀번호 확인"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
-        className="w-full px-3 py-2 rounded border border-gray-300 text-sm bg-white text-gray-900"
+        className="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
         autoComplete="new-password"
       />
-      {error && <p className="text-sm text-red-500">{error}</p>}
-      {message && <p className="text-sm text-green-600">{message}</p>}
+      {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
+      {message && <p className="text-sm text-green-600 dark:text-green-400">{message}</p>}
       <button
         type="submit"
         disabled={loading}

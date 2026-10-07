@@ -66,7 +66,7 @@ export default async function SettingsPage() {
 
   const seasonTab = activeSeason ? (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
         <SeasonInfoForm
           seasonId={activeSeason.id}
           name={activeSeason.name}
@@ -76,7 +76,7 @@ export default async function SettingsPage() {
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
         <SeasonRulesForm
           seasonId={activeSeason.id}
           defaultValues={{
@@ -95,21 +95,21 @@ export default async function SettingsPage() {
       </div>
     </div>
   ) : (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">새 시즌 시작</h3>
-      <p className="text-sm text-gray-500 mb-4">시즌을 시작하면 운동 인증과 벌금 집계가 시작됩니다.</p>
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
+      <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">새 시즌 시작</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">시즌을 시작하면 운동 인증과 벌금 집계가 시작됩니다.</p>
       <CreateSeasonForm />
     </div>
   );
 
   const accountTab = (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h3 className="text-base font-bold text-gray-900 mb-4">비밀번호 변경</h3>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">비밀번호 변경</h3>
         <ChangePasswordForm />
       </div>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h3 className="text-base font-bold text-gray-900 mb-4">로그아웃</h3>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">로그아웃</h3>
         <LogoutButton />
       </div>
     </div>
