@@ -64,14 +64,17 @@ export default function WorkoutForm({ crewMembers }: Props) {
           if (!result.skipped) {
             infoMessages.push(`영상 압축: ${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)}`);
           }
-        } catch {
-          // Compression failed, use original
+        } catch (err) {
+          console.error("Video compression error:", err);
+          setError(`영상 압축에 실패했습니다. 더 짧은 영상이나 낮은 해상도로 촬영해주세요. (원본 ${formatFileSize(file.size)})`);
+          setCompressing(false);
+          continue;
         }
         setCompressing(false);
       }
 
       if (processedFile.size > MAX_FILE_SIZE) {
-        setError(`파일이 20MB를 초과합니다 (${formatFileSize(processedFile.size)}). 촬영 설정에서 해상도를 낮춰주세요.`);
+        setError(`압축 후에도 20MB를 초과합니다 (${formatFileSize(processedFile.size)}). 더 짧은 영상을 시도해주세요.`);
         continue;
       }
 

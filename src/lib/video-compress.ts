@@ -92,6 +92,10 @@ export async function compressVideo(
   } catch (error) {
     console.error("Video compression failed:", error);
     progressCallback = null;
-    return { file, originalSize, compressedSize: originalSize, skipped: true };
+    // 원본이 20MB 이하면 원본 사용, 초과면 에러 전파
+    if (originalSize <= 20 * 1024 * 1024) {
+      return { file, originalSize, compressedSize: originalSize, skipped: true };
+    }
+    throw error;
   }
 }
