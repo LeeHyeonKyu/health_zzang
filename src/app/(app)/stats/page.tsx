@@ -97,7 +97,11 @@ export default async function StatsPage() {
     getAllWeeks(activeSeason.start_date, activeSeason.end_date),
     getCurrentWeekStart()
   );
-  const totalTarget = completedWeeks.length * activeSeason.default_target_count;
+  const ruleMap = new Map((weeklyRules ?? []).map((r) => [r.week_start, r]));
+  const myExemptedWeeks = new Set(exemptions.filter((e) => e.user_id === user.id).map((e) => e.week_start));
+  const totalTarget = completedWeeks
+    .filter((w) => !myExemptedWeeks.has(w))
+    .reduce((sum, w) => sum + (ruleMap.get(w)?.target_count ?? activeSeason.default_target_count), 0);
   const myAchievementRate = totalTarget > 0 ? Math.round(((myStats?.count ?? 0) / totalTarget) * 100) : 0;
 
   return (
