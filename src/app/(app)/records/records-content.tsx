@@ -18,6 +18,7 @@ interface Workout {
   user_id: string;
   date: string;
   id: string;
+  tagged_with?: string[];
 }
 
 interface Exemption {
@@ -135,24 +136,12 @@ export default function RecordsContent({
             시즌 운동 {memberWorkoutCount}회
           </p>
         </div>
-        <div className="space-y-4">
-          {filteredFeed.length === 0 ? (
-            <p className="text-center text-gray-400 py-8">인증 기록이 없습니다.</p>
-          ) : (
-            filteredFeed.map((item) => (
-              <FeedCard
-                key={item.id}
-                nickname={item.nickname}
-                userId={item.userId}
-                date={item.date}
-                note={item.note}
-                media={item.media}
-                onMemberClick={() => {}}
-                onCardClick={() => setDetailItem(item)}
-              />
-            ))
-          )}
-        </div>
+        <FeedView
+          items={filteredFeed}
+          seasonStartDate={seasonStartDate ?? ""}
+          onMemberClick={() => {}}
+          onCardClick={setDetailItem}
+        />
       </div>
     );
   }
@@ -282,7 +271,7 @@ function WeeklyView({
         </div>
 
         {members.map((member) => {
-          const memberWorkouts = workouts.filter((w) => w.user_id === member.id);
+          const memberWorkouts = workouts.filter((w) => w.user_id === member.id || (w.tagged_with ?? []).includes(member.id));
           const workoutDateSet = new Set(memberWorkouts.map((w) => w.date));
           const isMe = member.id === currentUserId;
           const isExempted = exemptedUserIds.has(member.id);
