@@ -39,8 +39,6 @@ interface Props {
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
-// getWeekStartDate and toDateStr imported from @/lib/utils
-
 export default function RecordsContent({
   currentUserId,
   members,
@@ -51,8 +49,7 @@ export default function RecordsContent({
   exemptions,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
-  const [myOnly, setMyOnly] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [selectedFeedMember, setSelectedFeedMember] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
@@ -82,25 +79,10 @@ export default function RecordsContent({
     return `${formatDate(ws)} ~ ${formatDate(we)}`;
   }, [currentWeekStart, seasonStartDate]);
 
-  const filteredWorkouts = useMemo(() => {
-    if (selectedMember) return allWorkouts.filter((w) => w.user_id === selectedMember);
-    if (myOnly) return allWorkouts.filter((w) => w.user_id === currentUserId);
-    return allWorkouts;
-  }, [allWorkouts, myOnly, selectedMember, currentUserId]);
-
   const filteredFeed = useMemo(() => {
-    if (selectedMember) return feedItems.filter((f) => f.userId === selectedMember);
-    if (myOnly) return feedItems.filter((f) => f.userId === currentUserId);
+    if (selectedFeedMember) return feedItems.filter((f) => f.userId === selectedFeedMember);
     return feedItems;
-  }, [feedItems, myOnly, selectedMember, currentUserId]);
-
-  const selectedMemberInfo = selectedMember
-    ? members.find((m) => m.id === selectedMember)
-    : null;
-
-  const memberWorkoutCount = selectedMember
-    ? allWorkouts.filter((w) => w.user_id === selectedMember).length
-    : 0;
+  }, [feedItems, selectedFeedMember]);
 
   if (!seasonName) {
     return (
@@ -118,31 +100,6 @@ export default function RecordsContent({
         members={members}
         onBack={() => setDetailItem(null)}
       />
-    );
-  }
-
-  if (selectedMember && selectedMemberInfo) {
-    return (
-      <div>
-        <button
-          onClick={() => setSelectedMember(null)}
-          className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4"
-        >
-          ← 전체 기록
-        </button>
-        <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 mb-4">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{selectedMemberInfo.nickname}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            시즌 운동 {memberWorkoutCount}회
-          </p>
-        </div>
-        <FeedView
-          items={filteredFeed}
-          seasonStartDate={seasonStartDate ?? ""}
-          onMemberClick={() => {}}
-          onCardClick={setDetailItem}
-        />
-      </div>
     );
   }
 
@@ -164,16 +121,6 @@ export default function RecordsContent({
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setMyOnly(!myOnly)}
-          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-            myOnly
-              ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
-              : "bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
-          }`}
-        >
-          {myOnly ? "내 기록" : "전체"}
-        </button>
       </div>
 
       {viewMode === "weekly" && (
@@ -182,10 +129,9 @@ export default function RecordsContent({
           weekLabel={weekLabel}
           weekOffset={weekOffset}
           setWeekOffset={setWeekOffset}
-          members={myOnly ? members.filter((m) => m.id === currentUserId) : members}
-          workouts={filteredWorkouts}
+          members={members}
+          workouts={allWorkouts}
           currentUserId={currentUserId}
-          onMemberClick={setSelectedMember}
           exemptions={exemptions}
           weekStartStr={toDateStr(currentWeekStart)}
         />
@@ -193,8 +139,8 @@ export default function RecordsContent({
 
       {viewMode === "monthly" && (
         <MonthlyView
-          workouts={filteredWorkouts}
-          feedItems={filteredFeed}
+          workouts={allWorkouts}
+          feedItems={feedItems}
           selectedDate={selectedCalDate}
           onDateSelect={setSelectedCalDate}
           onCardClick={setDetailItem}
@@ -202,13 +148,66 @@ export default function RecordsContent({
       )}
 
       {viewMode === "feed" && (
-        <FeedView
-          items={filteredFeed}
-          seasonStartDate={seasonStartDate ?? ""}
-          onMemberClick={setSelectedMember}
-          onCardClick={setDetailItem}
-        />
+        <div>
+          <MemberBadges
+            members={members}
+            currentUserId={currentUserId}
+            selected={selectedFeedMember}
+            onSelect={setSelectedFeedMember}
+          />
+          <FeedView
+            items={filteredFeed}
+            seasonStartDate={seasonStartDate ?? ""}
+            onCardClick={setDetailItem}
+          />
+        </div>
       )}
+    </div>
+  );
+}
+
+function MemberBadges({
+  members,
+  currentUserId,
+  selected,
+  onSelect,
+}: {
+  members: Member[];
+  currentUserId: string;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-3 mb-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}>
+      <button
+        onClick={() => onSelect(null)}
+        className={`flex-none flex flex-col items-center gap-1 transition-opacity ${selected === null ? "" : "opacity-40"}`}
+      >
+        <div className={`w-11 h-11 rounded-full flex items-center justify-center text-[10px] font-bold ${
+          selected === null ? "bg-blue-600 text-white ring-2 ring-blue-300 dark:ring-blue-500" : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+        }`}>전체</div>
+        <span className={`text-[10px] ${selected === null ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>전체</span>
+      </button>
+      {members.map((m) => (
+        <button
+          key={m.id}
+          onClick={() => onSelect(selected === m.id ? null : m.id)}
+          className={`flex-none flex flex-col items-center gap-1 transition-opacity ${selected !== null && selected !== m.id ? "opacity-40" : ""}`}
+        >
+          <div className={`w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold ${
+            selected === m.id
+              ? "bg-blue-600 text-white ring-2 ring-blue-300 dark:ring-blue-500"
+              : m.id === currentUserId
+              ? "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300"
+              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+          }`}>
+            {m.nickname.charAt(0)}
+          </div>
+          <span className={`text-[10px] whitespace-nowrap ${selected === m.id ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>
+            {m.nickname}
+          </span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -221,7 +220,6 @@ function WeeklyView({
   members,
   workouts,
   currentUserId,
-  onMemberClick,
   exemptions,
   weekStartStr,
 }: {
@@ -232,7 +230,6 @@ function WeeklyView({
   members: Member[];
   workouts: Workout[];
   currentUserId: string;
-  onMemberClick: (id: string) => void;
   exemptions: Exemption[];
   weekStartStr: string;
 }) {
@@ -281,14 +278,13 @@ function WeeklyView({
               key={member.id}
               className={`grid grid-cols-[4rem_repeat(7,_1fr)] text-center border-b border-gray-50 dark:border-gray-800 last:border-0 ${isExempted ? "opacity-50" : ""} ${isMe ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}
             >
-              <button
-                onClick={() => onMemberClick(member.id)}
-                className="py-2.5 px-1 text-left text-[11px] font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap overflow-visible"
+              <div
+                className="py-2.5 px-1 text-left text-[11px] font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap overflow-visible"
               >
                 {member.nickname}
                 {isMe && <span className="text-gray-400 dark:text-gray-500 ml-0.5">(나)</span>}
                 {isExempted && <span className="ml-0.5">🏥</span>}
-              </button>
+              </div>
               {weekDates.map((date) => (
                 <div key={date} className="py-2.5 flex items-center justify-center">
                   {workoutDateSet.has(date) ? (
@@ -362,12 +358,10 @@ function MonthlyView({
 function FeedView({
   items,
   seasonStartDate,
-  onMemberClick,
   onCardClick,
 }: {
   items: FeedItem[];
   seasonStartDate: string;
-  onMemberClick: (id: string) => void;
   onCardClick: (item: FeedItem) => void;
 }) {
   if (items.length === 0) {
@@ -405,7 +399,7 @@ function FeedView({
               note={item.note}
               media={item.media}
               taggedNames={item.taggedNames}
-              onMemberClick={() => onMemberClick(item.userId)}
+              onMemberClick={() => {}}
               onCardClick={() => onCardClick(item)}
             />
           </div>

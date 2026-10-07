@@ -20,6 +20,39 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+async function compressImage(file: File, maxWidth = 1920, quality = 0.8): Promise<File> {
+  if (file.size <= 1024 * 1024) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob || blob.size >= file.size) {
+            resolve(file);
+            return;
+          }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        quality
+      );
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export default function WorkoutForm({ crewMembers }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,28 +63,37 @@ export default function WorkoutForm({ crewMembers }: Props) {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newFiles = Array.from(e.target.files ?? []);
-    const rejected: string[] = [];
     const accepted: MediaFile[] = [];
+    let compressed = false;
 
     for (const file of newFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        rejected.push(`${formatFileSize(file.size)} 파일이 20MB를 초과합니다`);
+      let processedFile = file;
+      const isImage = file.type.startsWith("image");
+
+      if (isImage && file.size > 1024 * 1024) {
+        processedFile = await compressImage(file);
+        if (processedFile.size < file.size) compressed = true;
+      }
+
+      if (processedFile.size > MAX_FILE_SIZE) {
+        setError(`파일이 20MB를 초과합니다 (${formatFileSize(processedFile.size)})`);
         continue;
       }
+
       accepted.push({
-        file,
-        preview: URL.createObjectURL(file),
-        type: (file.type.startsWith("video") ? "video" : "photo") as "photo" | "video",
+        file: processedFile,
+        preview: URL.createObjectURL(processedFile),
+        type: isImage ? "photo" : "video",
       });
     }
 
-    if (rejected.length > 0) {
-      setError(rejected.join(", "));
-    } else {
-      setError("");
+    if (compressed) {
+      setInfo("이미지가 자동으로 압축되었습니다.");
+      setTimeout(() => setInfo(""), 3000);
     }
 
     setFiles((prev) => [...prev, ...accepted]);
@@ -143,6 +185,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
   }
 
   const today = new Date().toISOString().split("T")[0];
+  const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -164,7 +207,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
           className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
         >
           <p className="text-gray-500 dark:text-gray-400 text-sm">탭하여 사진/영상 추가</p>
-          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">최대 20MB</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">이미지는 자동 압축 · 최대 20MB</p>
         </div>
         <input
           ref={fileInputRef}
@@ -177,43 +220,31 @@ export default function WorkoutForm({ crewMembers }: Props) {
       </div>
 
       {files.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
-          {files.map((f, i) => (
-            <div key={i} className={`relative rounded overflow-hidden bg-gray-100 dark:bg-gray-800 ${f.type === "photo" ? "aspect-square" : "aspect-video"}`}>
-              {f.type === "photo" ? (
-                <img src={f.preview} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <video src={f.preview} className="w-full h-full object-contain bg-black" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
-                {f.type === "video" ? "🎬 " : ""}{formatFileSize(f.file.size)}
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {files.map((f, i) => (
+              <div key={i} className={`relative rounded overflow-hidden bg-gray-100 dark:bg-gray-800 ${f.type === "photo" ? "aspect-square" : "aspect-video"}`}>
+                {f.type === "photo" ? (
+                  <img src={f.preview} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <video src={f.preview} className="w-full h-full object-contain bg-black" />
+                )}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
+                  {f.type === "video" ? "🎬 " : ""}{formatFileSize(f.file.size)}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full text-xs flex items-center justify-center"
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => removeFile(i)}
-                className="absolute top-1 right-1 w-6 h-6 bg-black/60 text-white rounded-full text-xs flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {files.length > 0 && (() => {
-        const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
-        const largeVideos = files.filter((f) => f.type === "video" && f.file.size > 20 * 1024 * 1024);
-        return (
-          <div className="space-y-1">
-            <p className="text-xs text-gray-400 dark:text-gray-500">총 {formatFileSize(totalBytes)}</p>
-            {largeVideos.length > 0 && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                ⚠️ 영상이 큽니다 ({largeVideos.map((f) => formatFileSize(f.file.size)).join(", ")}). 촬영 설정에서 해상도를 낮추면 용량을 줄일 수 있습니다.
-              </p>
-            )}
+            ))}
           </div>
-        );
-      })()}
+          <p className="text-xs text-gray-400 dark:text-gray-500">총 {formatFileSize(totalBytes)}</p>
+        </>
+      )}
 
       <div>
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">운동 내용 (선택)</label>
@@ -253,6 +284,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
         </div>
       )}
 
+      {info && <p className="text-green-600 dark:text-green-400 text-sm">{info}</p>}
       {error && <p className="text-red-500 dark:text-red-400 text-sm">{error}</p>}
 
       <button
