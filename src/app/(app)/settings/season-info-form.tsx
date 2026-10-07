@@ -51,16 +51,16 @@ export default function SeasonInfoForm({ seasonId, name, startDate, endDate, day
         </div>
         <div>
           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">시즌 이름</label>
-          <input name="name" defaultValue={name} required className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <input name="name" defaultValue={name} required className="input-base mt-1" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">시작일</label>
-            <input name="start_date" type="date" defaultValue={startDate} required className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <input name="start_date" type="date" defaultValue={startDate} required className="input-base mt-1" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">종료일 (선택)</label>
-            <input name="end_date" type="date" defaultValue={endDate ?? ""} className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <input name="end_date" type="date" defaultValue={endDate ?? ""} className="input-base mt-1" />
           </div>
         </div>
         {message && <p className={`text-sm ${message.includes("실패") ? "text-red-500" : "text-green-600"}`}>{message}</p>}

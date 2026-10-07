@@ -159,21 +159,21 @@ function RuleInputs({ prefix, defaults }: { prefix: string; defaults: { target_c
       <div>
         <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">주간 목표</label>
         <div className="relative mt-1">
-          <input name={`${prefix}target_count`} type="number" min="1" defaultValue={defaults.target_count} required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <input name={`${prefix}target_count`} type="number" min="1" defaultValue={defaults.target_count} required className="input-base" />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">회</span>
         </div>
       </div>
       <div>
         <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">미달 벌금</label>
         <div className="relative mt-1">
-          <input name={`${prefix}penalty_per_miss`} type="number" min="0" step="1000" defaultValue={defaults.penalty_per_miss} required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <input name={`${prefix}penalty_per_miss`} type="number" min="0" step="1000" defaultValue={defaults.penalty_per_miss} required className="input-base" />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">원</span>
         </div>
       </div>
       <div>
         <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">초과 차감</label>
         <div className="relative mt-1">
-          <input name={`${prefix}reward_per_extra`} type="number" min="0" step="1000" defaultValue={defaults.reward_per_extra} className="w-full px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <input name={`${prefix}reward_per_extra`} type="number" min="0" step="1000" defaultValue={defaults.reward_per_extra} className="input-base" />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">원</span>
         </div>
       </div>

@@ -153,7 +153,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
           value={date}
           max={today}
           onChange={(e) => setDate(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+          className="input-base"
         />
       </div>
 
@@ -207,7 +207,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
           onChange={(e) => setNote(e.target.value)}
           placeholder="오늘 한 운동을 간단히 메모하세요"
           rows={2}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 resize-none"
+          className="input-base resize-none"
         />
       </div>
 
