@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className="h-full antialiased">
+    <html lang="ko" className="h-full antialiased" style={{ colorScheme: "light" }} data-theme="light">
       <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
