@@ -6,7 +6,7 @@ import SeasonRulesForm from "./season-rules-form";
 import ChangePasswordForm from "./change-password-form";
 import SettingsTabs from "./settings-tabs";
 import LogoutButton from "@/components/logout-button";
-import { getWeekStart, formatDate } from "@/lib/utils";
+import { getWeekStart, formatWeekLabel, formatDateShort } from "@/lib/utils";
 
 export default async function SettingsPage() {
   const user = await getUser();
@@ -41,7 +41,8 @@ export default async function SettingsPage() {
       const ws = d.toISOString().split("T")[0];
       const weekEnd = new Date(d);
       weekEnd.setDate(weekEnd.getDate() + 6);
-      const label = `${formatDate(ws)} ~ ${formatDate(weekEnd.toISOString().split("T")[0])}`;
+      const weStr = weekEnd.toISOString().split("T")[0];
+      const label = `${formatWeekLabel(activeSeason.start_date, ws)} (${formatDateShort(ws)} ~ ${formatDateShort(weStr)})`;
 
       const ov = overrideMap.get(ws);
       pastWeeks.push({

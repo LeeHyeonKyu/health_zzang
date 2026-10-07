@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getWeekStart } from "@/lib/utils";
 
 export default async function StatsPage() {
   const user = await getUser();
@@ -72,10 +72,13 @@ export default async function StatsPage() {
     d.setDate(d.getDate() + 7);
   }
 
+  const currentWeekStart = getWeekStart();
+  const completedWeeks = allWeeks.filter((w) => w < currentWeekStart);
+
   const memberStats = members.map((m) => {
     const count = allWorkouts.filter((w) => w.user_id === m.id).length;
     let totalPenalty = 0;
-    for (const ws of allWeeks) {
+    for (const ws of completedWeeks) {
       const we = getWeekEnd(ws);
       const rule = getRuleForWeek(ws);
       const weekCount = allWorkouts.filter((w) => w.user_id === m.id && w.date >= ws && w.date <= we).length;

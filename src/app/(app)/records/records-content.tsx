@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatWeekLabel, formatDateShort } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
 type ViewMode = "weekly" | "monthly" | "feed";
@@ -71,10 +71,15 @@ export default function RecordsContent({
   }, [currentWeekStart]);
 
   const weekLabel = useMemo(() => {
+    const ws = toDateStr(currentWeekStart);
     const end = new Date(currentWeekStart);
     end.setDate(end.getDate() + 6);
-    return `${formatDate(toDateStr(currentWeekStart))} ~ ${formatDate(toDateStr(end))}`;
-  }, [currentWeekStart]);
+    const we = toDateStr(end);
+    if (seasonStartDate) {
+      return `${formatWeekLabel(seasonStartDate, ws)} (${formatDateShort(ws)} ~ ${formatDateShort(we)})`;
+    }
+    return `${formatDate(ws)} ~ ${formatDate(we)}`;
+  }, [currentWeekStart, seasonStartDate]);
 
   const filteredWorkouts = useMemo(() => {
     if (selectedMember) return allWorkouts.filter((w) => w.user_id === selectedMember);

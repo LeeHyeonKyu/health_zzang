@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatWeekLabel, formatDateShort, getWeekStart as getWeekStartStr } from "@/lib/utils";
 
 type PenaltyView = "cumulative" | "weekly";
 
@@ -66,29 +66,34 @@ export default function PenaltyContent({
     };
   }
 
+  const currentWeekStart = useMemo(() => toDateStr(getMonday(new Date())), []);
+
   const allWeeks = useMemo(() => {
     const weeks: string[] = [];
     const endDate = seasonEndDate ?? toDateStr(new Date());
     const start = getMonday(new Date(seasonStartDate + "T00:00:00"));
-    const end = new Date(endDate + "T00:00:00");
     const d = new Date(start);
-    while (d <= end) {
+    while (d <= new Date(endDate + "T00:00:00")) {
       weeks.push(toDateStr(d));
       d.setDate(d.getDate() + 7);
     }
     return weeks;
   }, [seasonStartDate, seasonEndDate]);
 
+  const completedWeeks = useMemo(() => {
+    return allWeeks.filter((w) => w < currentWeekStart);
+  }, [allWeeks, currentWeekStart]);
+
   const currentWeekIdx = useMemo(() => {
-    const now = getMonday(new Date());
-    const idx = allWeeks.findIndex((w) => w === toDateStr(now));
+    const idx = allWeeks.findIndex((w) => w === currentWeekStart);
     return idx >= 0 ? idx : allWeeks.length - 1;
-  }, [allWeeks]);
+  }, [allWeeks, currentWeekStart]);
 
   const selectedWeekIdx = currentWeekIdx + weekOffset;
   const selectedWeek = allWeeks[selectedWeekIdx] ?? allWeeks[allWeeks.length - 1];
   const selectedWeekEnd = selectedWeek ? getWeekEnd(selectedWeek) : "";
   const selectedRule = selectedWeek ? getRuleForWeek(selectedWeek) : { target: 0, penaltyPerMiss: 0, rewardPerExtra: 0 };
+  const isSelectedWeekCurrent = selectedWeek === currentWeekStart;
 
   function calcPenalty(workoutCount: number, rule: { target: number; penaltyPerMiss: number; rewardPerExtra: number }) {
     const missed = Math.max(0, rule.target - workoutCount);
@@ -100,7 +105,7 @@ export default function PenaltyContent({
     return members.map((m) => {
       let totalPenalty = 0;
       let totalWorkouts = 0;
-      for (const ws of allWeeks) {
+      for (const ws of completedWeeks) {
         const we = getWeekEnd(ws);
         const rule = getRuleForWeek(ws);
         const count = workouts.filter((w) => w.user_id === m.id && w.date >= ws && w.date <= we).length;
@@ -109,19 +114,24 @@ export default function PenaltyContent({
       }
       return { ...m, totalWorkouts, totalPenalty };
     }).sort((a, b) => b.totalPenalty - a.totalPenalty);
-  }, [members, allWeeks, workouts]);
+  }, [members, completedWeeks, workouts]);
 
   const weeklyData = useMemo(() => {
     if (!selectedWeek) return [];
     return members.map((m) => {
       const count = workouts.filter((w) => w.user_id === m.id && w.date >= selectedWeek && w.date <= selectedWeekEnd).length;
-      const penalty = calcPenalty(count, selectedRule);
+      const penalty = isSelectedWeekCurrent ? 0 : calcPenalty(count, selectedRule);
       return { ...m, count, penalty };
-    }).sort((a, b) => b.penalty - a.penalty);
-  }, [members, workouts, selectedWeek, selectedWeekEnd, selectedRule]);
+    }).sort((a, b) => b.count - a.count);
+  }, [members, workouts, selectedWeek, selectedWeekEnd, selectedRule, isSelectedWeekCurrent]);
 
   const grandTotal = cumulativeData.reduce((sum, m) => sum + m.totalPenalty, 0);
   const weekTotal = weeklyData.reduce((sum, m) => sum + m.penalty, 0);
+
+  function weekLabel(ws: string): string {
+    const num = formatWeekLabel(seasonStartDate, ws);
+    return `${num} (${formatDateShort(ws)} ~ ${formatDateShort(getWeekEnd(ws))})`;
+  }
 
   return (
     <div>
@@ -143,6 +153,7 @@ export default function PenaltyContent({
         <div>
           <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4">
             <p className="text-sm font-bold text-blue-800">{seasonName}</p>
+            <p className="text-xs text-blue-600 mt-1">완료된 주까지의 누적 (진행 중인 주 제외)</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <table className="w-full">
@@ -190,9 +201,12 @@ export default function PenaltyContent({
             >◀</button>
             <div className="text-center">
               <span className="text-sm font-semibold text-gray-900">
-                {selectedWeek ? `${formatDate(selectedWeek)} ~ ${formatDate(selectedWeekEnd)}` : ""}
+                {selectedWeek ? weekLabel(selectedWeek) : ""}
               </span>
-              {weekOffset !== 0 && (
+              {isSelectedWeekCurrent && (
+                <span className="ml-2 text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">진행 중</span>
+              )}
+              {weekOffset !== 0 && !isSelectedWeekCurrent && (
                 <button onClick={() => setWeekOffset(0)} className="ml-2 text-xs text-blue-600 hover:underline">이번 주</button>
               )}
             </div>
@@ -214,7 +228,9 @@ export default function PenaltyContent({
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">크루원</th>
                   <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">인증</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">벌금</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
+                    {isSelectedWeekCurrent ? "벌금 (집계 전)" : "벌금"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -228,21 +244,26 @@ export default function PenaltyContent({
                         {m.count}<span className="text-gray-400">/{selectedRule.target}</span>
                       </span>
                     </td>
-                    <td className={`py-3 px-4 text-right text-sm font-mono font-semibold ${m.penalty > 0 ? "text-red-600" : m.penalty < 0 ? "text-green-600" : "text-gray-400"}`}>
-                      {formatCurrency(m.penalty)}
+                    <td className={`py-3 px-4 text-right text-sm font-mono font-semibold ${
+                      isSelectedWeekCurrent ? "text-gray-300" :
+                      m.penalty > 0 ? "text-red-600" : m.penalty < 0 ? "text-green-600" : "text-gray-400"
+                    }`}>
+                      {isSelectedWeekCurrent ? "-" : formatCurrency(m.penalty)}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-200 bg-gray-50">
-                  <td className="py-3 px-4 text-sm font-bold text-gray-900">합계</td>
-                  <td />
-                  <td className={`py-3 px-4 text-right text-sm font-mono font-bold ${weekTotal > 0 ? "text-red-600" : weekTotal < 0 ? "text-green-600" : "text-gray-500"}`}>
-                    {formatCurrency(weekTotal)}
-                  </td>
-                </tr>
-              </tfoot>
+              {!isSelectedWeekCurrent && (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-200 bg-gray-50">
+                    <td className="py-3 px-4 text-sm font-bold text-gray-900">합계</td>
+                    <td />
+                    <td className={`py-3 px-4 text-right text-sm font-mono font-bold ${weekTotal > 0 ? "text-red-600" : weekTotal < 0 ? "text-green-600" : "text-gray-500"}`}>
+                      {formatCurrency(weekTotal)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
