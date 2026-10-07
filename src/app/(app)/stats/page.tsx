@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
 import { formatCurrency, toDateStr } from "@/lib/utils";
 import { calcMemberPenalties, getCompletedWeeks, getAllWeeks, getCurrentWeekStart } from "@/lib/penalty";
+import { getReadUrl } from "@/lib/r2";
 import Ranking from "./ranking";
 import StatsHeader from "./stats-header";
 import WeeklyPenalty from "./weekly-penalty";
@@ -30,11 +31,19 @@ export default async function StatsPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: workouts }, { data: weeklyRules }, exemptions] = await Promise.all([
+  const [{ data: workouts }, { data: weeklyRules }, exemptions, { data: avatarProfiles }] = await Promise.all([
     supabase.from("workout").select("user_id, date, tagged_with").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
     getExemptions(activeSeason.id),
+    supabase.from("profiles").select("id, avatar_r2_key").eq("crew_id", profile.crew_id).not("avatar_r2_key", "is", null),
   ]);
+
+  const avatarMap: Record<string, string> = {};
+  for (const p of avatarProfiles ?? []) {
+    if (p.avatar_r2_key) {
+      avatarMap[p.id] = await getReadUrl(p.avatar_r2_key);
+    }
+  }
 
   const allWorkouts = workouts ?? [];
 
@@ -106,7 +115,7 @@ export default async function StatsPage() {
       />
 
       {/* 크루 랭킹 */}
-      <Ranking members={memberStats} currentUserId={user.id} />
+      <Ranking members={memberStats} currentUserId={user.id} avatarMap={avatarMap} />
 
       {/* 주별 벌금 상세 */}
       <WeeklyPenalty

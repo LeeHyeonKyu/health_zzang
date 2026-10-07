@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatCurrency } from "@/lib/utils";
+import Avatar from "@/components/avatar";
 
 interface Member {
   id: string;
@@ -10,7 +11,7 @@ interface Member {
   totalPenalty: number;
 }
 
-export default function Ranking({ members, currentUserId }: { members: Member[]; currentUserId: string }) {
+export default function Ranking({ members, currentUserId, avatarMap }: { members: Member[]; currentUserId: string; avatarMap?: Record<string, string> }) {
   const [sortBy, setSortBy] = useState<"count" | "penalty">("penalty");
 
   const sorted = [...members].sort((a, b) => {
@@ -54,11 +55,12 @@ export default function Ranking({ members, currentUserId }: { members: Member[];
         </div>
         {sorted.map((m, i) => (
           <div key={m.id} className={`flex items-center gap-3 py-2.5 px-3 rounded-lg ${m.id === currentUserId ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}>
-            <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
+            <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${
               i === 0 ? "bg-yellow-400 text-white" : i === 1 ? "bg-gray-300 text-white" : i === 2 ? "bg-amber-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
             }`}>
               {i + 1}
             </span>
+            <Avatar nickname={m.nickname} avatarUrl={avatarMap?.[m.id]} size="sm" />
             <span className="flex-1 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
               {m.nickname}
               {m.id === currentUserId && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(나)</span>}

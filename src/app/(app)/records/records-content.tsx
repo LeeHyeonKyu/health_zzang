@@ -35,6 +35,7 @@ interface Props {
   allWorkouts: Workout[];
   feedItems: FeedItem[];
   exemptions: Exemption[];
+  avatarMap?: Record<string, string>;
 }
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -47,6 +48,7 @@ export default function RecordsContent({
   allWorkouts,
   feedItems,
   exemptions,
+  avatarMap,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [weekOffset, setWeekOffset] = useState(0);
@@ -138,6 +140,7 @@ export default function RecordsContent({
           selectedDate={selectedCalDate}
           onDateSelect={setSelectedCalDate}
           onCardClick={setDetailItem}
+          avatarMap={avatarMap}
         />
       )}
     </div>
@@ -240,12 +243,14 @@ function MonthlyView({
   selectedDate,
   onDateSelect,
   onCardClick,
+  avatarMap,
 }: {
   workouts: Workout[];
   feedItems: FeedItem[];
   selectedDate: string | null;
   onDateSelect: (date: string | null) => void;
   onCardClick: (item: FeedItem) => void;
+  avatarMap?: Record<string, string>;
 }) {
   const workoutDates = [...new Set(workouts.map((w) => w.date))];
   const selectedItems = selectedDate
@@ -275,7 +280,7 @@ function MonthlyView({
                   note={item.note}
                   media={item.media}
                   taggedNames={item.taggedNames}
-                  onMemberClick={() => {}}
+                  avatarUrl={avatarMap?.[item.userId]}
                   onCardClick={() => onCardClick(item)}
                 />
               ))}

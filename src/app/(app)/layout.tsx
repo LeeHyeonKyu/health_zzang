@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/components/theme-toggle";
 import PerfReporter from "@/components/perf-reporter";
+import Avatar from "@/components/avatar";
 import { getUser, getProfile } from "@/lib/data";
 import { getReadUrl } from "@/lib/r2";
 
@@ -12,8 +13,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profile = await getProfile(user.id);
   const displayName = profile?.nickname ?? user.email;
   const avatarUrl = profile?.avatar_r2_key ? await getReadUrl(profile.avatar_r2_key) : null;
-  const initial = (displayName ?? "?").charAt(0);
-
   return (
     <div className="min-h-dvh flex flex-col">
       <PerfReporter />
@@ -23,11 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Link href="/settings" prefetch={false} className="flex items-center gap-1.5">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={displayName ?? ""} className="w-7 h-7 rounded-full object-cover" />
-              ) : (
-                <span className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold">{initial}</span>
-              )}
+              <Avatar nickname={displayName ?? "?"} avatarUrl={avatarUrl} size="sm" className="w-7 h-7" />
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400 hidden sm:inline">{displayName}</span>
             </Link>
           </div>
