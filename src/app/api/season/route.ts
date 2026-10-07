@@ -91,6 +91,8 @@ export async function PATCH(request: NextRequest) {
               target_count: season.default_target_count,
               penalty_per_miss: season.default_penalty_per_miss,
               reward_per_extra: season.default_reward_per_extra,
+              progressive_penalty: season.progressive_penalty ?? false,
+              progressive_step: season.progressive_step ?? null,
             }))
           );
         }

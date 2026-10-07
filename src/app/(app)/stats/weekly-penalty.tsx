@@ -5,7 +5,7 @@ import { formatCurrency, formatWeekLabel, formatDateShort, getWeekStart, getWeek
 
 interface Member { id: string; nickname: string }
 interface Workout { user_id: string; date: string; tagged_with?: string[] }
-interface WeeklyRule { week_start: string; target_count: number; penalty_per_miss: number; reward_per_extra: number }
+interface WeeklyRule { week_start: string; target_count: number; penalty_per_miss: number; reward_per_extra: number; progressive_penalty?: boolean | null; progressive_step?: number | null }
 interface Exemption { user_id: string; week_start: string; reason: string }
 
 interface Props {
@@ -70,8 +70,10 @@ export default function WeeklyPenalty({
       const count = dates.size;
       const missed = Math.max(0, rule.target - count);
       const extra = Math.max(0, count - rule.target);
-      const missPenalty = progressivePenalty && missed > 0
-        ? missed * rule.penaltyPerMiss + progressiveStep * missed * (missed - 1) / 2
+      const weekProgressive = override?.progressive_penalty ?? progressivePenalty;
+      const weekStep = override?.progressive_step ?? progressiveStep;
+      const missPenalty = weekProgressive && missed > 0
+        ? missed * rule.penaltyPerMiss + weekStep * missed * (missed - 1) / 2
         : missed * rule.penaltyPerMiss;
       const penalty = (isCurrentWeek || exempt) ? 0 : missPenalty - extra * rule.rewardPerExtra;
       return { ...m, count, missed, penalty, exempt, exemptReason: reason };

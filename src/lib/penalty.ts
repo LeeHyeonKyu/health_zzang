@@ -12,7 +12,14 @@ export interface PenaltyInput {
   progressiveStep?: number;
   members: { id: string; nickname: string }[];
   workouts: { user_id: string; date: string; tagged_with?: string[] }[];
-  weeklyRules: { week_start: string; target_count: number; penalty_per_miss: number; reward_per_extra: number }[];
+  weeklyRules: {
+    week_start: string;
+    target_count: number;
+    penalty_per_miss: number;
+    reward_per_extra: number;
+    progressive_penalty?: boolean | null;
+    progressive_step?: number | null;
+  }[];
   exemptions: { user_id: string; week_start: string }[];
 }
 
@@ -62,6 +69,10 @@ export function calcMemberPenalties(input: PenaltyInput): MemberPenalty[] {
       const penaltyPerMiss = override?.penalty_per_miss ?? defaultPenaltyPerMiss;
       const rewardPerExtra = override?.reward_per_extra ?? defaultRewardPerExtra;
 
+      // 주별 override에 progressive가 있으면 그걸 사용, 없으면 시즌 기본값
+      const isProgressive = override?.progressive_penalty ?? input.progressivePenalty ?? false;
+      const step = override?.progressive_step ?? input.progressiveStep ?? penaltyPerMiss;
+
       const dates = new Set(
         workouts
           .filter((w) => w.date >= ws && w.date <= we && (w.user_id === m.id || (w.tagged_with ?? []).includes(m.id)))
@@ -73,10 +84,7 @@ export function calcMemberPenalties(input: PenaltyInput): MemberPenalty[] {
       const missed = Math.max(0, target - count);
       const extra = Math.max(0, count - target);
       let missPenalty: number;
-      if (input.progressivePenalty && missed > 0) {
-        const step = input.progressiveStep ?? penaltyPerMiss;
-        // miss 1: base, miss 2: base+step, miss 3: base+2*step, ...
-        // total = missed*base + step*missed*(missed-1)/2
+      if (isProgressive && missed > 0) {
         missPenalty = missed * penaltyPerMiss + step * missed * (missed - 1) / 2;
       } else {
         missPenalty = missed * penaltyPerMiss;

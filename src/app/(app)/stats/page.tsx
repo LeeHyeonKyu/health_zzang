@@ -68,6 +68,8 @@ export default async function StatsPage() {
       target_count: r.target_count,
       penalty_per_miss: r.penalty_per_miss,
       reward_per_extra: r.reward_per_extra,
+      progressive_penalty: r.progressive_penalty,
+      progressive_step: r.progressive_step,
     })),
     exemptions: exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start })),
   };
@@ -144,6 +146,8 @@ export default async function StatsPage() {
           target_count: r.target_count,
           penalty_per_miss: r.penalty_per_miss,
           reward_per_extra: r.reward_per_extra,
+          progressive_penalty: r.progressive_penalty,
+          progressive_step: r.progressive_step,
         }))}
         exemptions={exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start, reason: e.reason }))}
       />
