@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
-import { formatDate, formatWeekLabel, formatDateShort } from "@/lib/utils";
+import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, toDateStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
 type ViewMode = "weekly" | "monthly" | "feed";
@@ -37,17 +37,7 @@ interface Props {
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 
-function getWeekStartDate(date: Date = new Date()): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
+// getWeekStartDate and toDateStr imported from @/lib/utils
 
 export default function RecordsContent({
   currentUserId,

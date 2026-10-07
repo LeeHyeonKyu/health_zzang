@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getWeekStart, getAllWeeks, todayStr } from "@/lib/utils";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -43,7 +44,7 @@ export async function PATCH(request: NextRequest) {
   if (action === "end") {
     const { error } = await supabase.from("season").update({
       is_active: false,
-      end_date: body.end_date ?? new Date().toISOString().split("T")[0],
+      end_date: body.end_date ?? todayStr(),
     }).eq("id", season_id);
 
     if (error) return NextResponse.json({ error: { code: "END_FAILED", message: error.message } }, { status: 500 });
@@ -68,18 +69,9 @@ export async function PATCH(request: NextRequest) {
     // 기본 규칙 변경 전, 지난 주 중 override가 없는 주를 현재 default로 스냅샷
     const { data: season } = await supabase.from("season").select("*").eq("id", season_id).single();
     if (season) {
-      const today = new Date();
-      const currentWeekStart = getMonday(today);
-      const seasonStart = new Date(season.start_date + "T00:00:00");
-
-      const pastWeeks: string[] = [];
-      const d = new Date(seasonStart);
-      const day = d.getDay();
-      d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-      while (d < currentWeekStart) {
-        pastWeeks.push(d.toISOString().split("T")[0]);
-        d.setDate(d.getDate() + 7);
-      }
+      const currentWeekStart = getWeekStart();
+      const pastWeeks = getAllWeeks(season.start_date, season.end_date)
+        .filter((w) => w < currentWeekStart);
 
       if (pastWeeks.length > 0) {
         const { data: existingOverrides } = await supabase
@@ -134,10 +126,3 @@ export async function PATCH(request: NextRequest) {
   return NextResponse.json({ error: { code: "UNKNOWN_ACTION", message: "알 수 없는 작업입니다" } }, { status: 400 });
 }
 
-function getMonday(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-  d.setHours(0, 0, 0, 0);
-  return d;
-}

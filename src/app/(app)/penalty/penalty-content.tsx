@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { formatCurrency, formatWeekLabel, formatDateShort } from "@/lib/utils";
+import { formatCurrency, formatWeekLabel, formatDateShort, getWeekStart, getWeekEnd, getAllWeeks, toDateStr } from "@/lib/utils";
 import { calcMemberPenalties } from "@/lib/penalty";
 
 type PenaltyView = "cumulative" | "weekly";
@@ -23,24 +23,6 @@ interface Props {
   workouts: Workout[];
   weeklyRules: WeeklyRule[];
   exemptions: Exemption[];
-}
-
-function getMonday(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
-}
-
-function getWeekEnd(weekStart: string): string {
-  const d = new Date(weekStart + "T00:00:00");
-  d.setDate(d.getDate() + 6);
-  return toDateStr(d);
 }
 
 export default function PenaltyContent({
@@ -80,18 +62,10 @@ export default function PenaltyContent({
     };
   }
 
-  const currentWeekStart = useMemo(() => toDateStr(getMonday(new Date())), []);
+  const currentWeekStart = useMemo(() => getWeekStart(), []);
 
   const allWeeks = useMemo(() => {
-    const weeks: string[] = [];
-    const endDate = seasonEndDate ?? toDateStr(new Date());
-    const start = getMonday(new Date(seasonStartDate + "T00:00:00"));
-    const d = new Date(start);
-    while (d <= new Date(endDate + "T00:00:00")) {
-      weeks.push(toDateStr(d));
-      d.setDate(d.getDate() + 7);
-    }
-    return weeks;
+    return getAllWeeks(seasonStartDate, seasonEndDate);
   }, [seasonStartDate, seasonEndDate]);
 
   const currentWeekIdx = useMemo(() => {

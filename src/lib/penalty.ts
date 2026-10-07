@@ -1,3 +1,7 @@
+import { getWeekStart, getWeekEnd, getAllWeeks, toDateStr } from "./utils";
+
+export { getAllWeeks };
+
 export interface PenaltyInput {
   seasonStartDate: string;
   seasonEndDate: string | null;
@@ -18,45 +22,8 @@ export interface MemberPenalty {
   exemptedWeeks: number;
 }
 
-function getMonday(date: Date): string {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function getWeekEndStr(ws: string): string {
-  const parts = ws.split("-").map(Number);
-  const d = new Date(parts[0], parts[1] - 1, parts[2]);
-  d.setDate(d.getDate() + 6);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function todayStr(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-export function getAllWeeks(seasonStartDate: string, seasonEndDate: string | null): string[] {
-  const weeks: string[] = [];
-  const endDate = seasonEndDate ?? todayStr();
-  const parts = seasonStartDate.split("-").map(Number);
-  const startDate = new Date(parts[0], parts[1] - 1, parts[2]);
-  const startMon = getMonday(startDate);
-  const startParts = startMon.split("-").map(Number);
-  const d = new Date(startParts[0], startParts[1] - 1, startParts[2]);
-
-  while (true) {
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    if (ds > endDate) break;
-    weeks.push(ds);
-    d.setDate(d.getDate() + 7);
-  }
-  return weeks;
-}
-
 export function getCurrentWeekStart(): string {
-  return getMonday(new Date());
+  return getWeekStart();
 }
 
 export function getCompletedWeeks(allWeeks: string[], currentWeekStart: string): string[] {
@@ -73,9 +40,9 @@ export function calcMemberPenalties(input: PenaltyInput): MemberPenalty[] {
   const ruleMap = new Map(weeklyRules.map((r) => [r.week_start, r]));
   const exemptionSet = new Set(exemptions.map((e) => `${e.user_id}:${e.week_start}`));
 
-  const allWeeks = getAllWeeks(seasonStartDate, seasonEndDate);
+  const allW = getAllWeeks(seasonStartDate, seasonEndDate);
   const currentWeekStart = getCurrentWeekStart();
-  const completedWeeks = getCompletedWeeks(allWeeks, currentWeekStart);
+  const completedWeeks = getCompletedWeeks(allW, currentWeekStart);
 
   return members.map((m) => {
     let totalPenalty = 0;
@@ -87,7 +54,7 @@ export function calcMemberPenalties(input: PenaltyInput): MemberPenalty[] {
         exemptedWeeks++;
         continue;
       }
-      const we = getWeekEndStr(ws);
+      const we = getWeekEnd(ws);
       const override = ruleMap.get(ws);
       const target = override?.target_count ?? defaultTargetCount;
       const penaltyPerMiss = override?.penalty_per_miss ?? defaultPenaltyPerMiss;

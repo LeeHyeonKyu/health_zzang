@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { todayStr } from "@/lib/utils";
 
 interface MediaFile {
   file: File;
@@ -16,7 +17,7 @@ interface Props {
 export default function WorkoutForm({ crewMembers }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [taggedIds, setTaggedIds] = useState<string[]>([]);
@@ -112,7 +113,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr();
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

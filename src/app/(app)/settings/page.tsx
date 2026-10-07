@@ -6,7 +6,7 @@ import SeasonRulesForm from "./season-rules-form";
 import ChangePasswordForm from "./change-password-form";
 import SettingsTabs from "./settings-tabs";
 import LogoutButton from "@/components/logout-button";
-import { getWeekStart, formatWeekLabel, formatDateShort } from "@/lib/utils";
+import { getWeekStart, getWeekEnd, getAllWeeks, formatWeekLabel, formatDateShort } from "@/lib/utils";
 
 export default async function SettingsPage() {
   const user = await getUser();
@@ -30,19 +30,12 @@ export default async function SettingsPage() {
     currentOverride = override;
 
     const overrideMap = new Map((allOverrides ?? []).map((r) => [r.week_start, r]));
-    const seasonStart = new Date(activeSeason.start_date + "T00:00:00");
-    const currentWeekDate = new Date(weekStart + "T00:00:00");
 
-    const d = new Date(seasonStart);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-
-    while (d < currentWeekDate) {
-      const ws = d.toISOString().split("T")[0];
-      const weekEnd = new Date(d);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      const weStr = weekEnd.toISOString().split("T")[0];
-      const label = `${formatWeekLabel(activeSeason.start_date, ws)} (${formatDateShort(ws)} ~ ${formatDateShort(weStr)})`;
+    const allSeasonWeeks = getAllWeeks(activeSeason.start_date, activeSeason.end_date);
+    for (const ws of allSeasonWeeks) {
+      if (ws >= weekStart) continue;
+      const we = getWeekEnd(ws);
+      const label = `${formatWeekLabel(activeSeason.start_date, ws)} (${formatDateShort(ws)} ~ ${formatDateShort(we)})`;
 
       const ov = overrideMap.get(ws);
       pastWeeks.push({
@@ -53,7 +46,6 @@ export default async function SettingsPage() {
         reward_per_extra: ov?.reward_per_extra ?? activeSeason.default_reward_per_extra,
         isOverride: !!ov,
       });
-      d.setDate(d.getDate() + 7);
     }
     pastWeeks.reverse();
   }

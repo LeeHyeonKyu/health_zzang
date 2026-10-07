@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { todayStr } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   if (!date) return NextResponse.json({ error: { code: "MISSING_DATE", message: "날짜를 선택해주세요" } }, { status: 400 });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr();
   if (date > today) return NextResponse.json({ error: { code: "FUTURE_DATE", message: "미래 날짜는 선택할 수 없습니다" } }, { status: 400 });
 
   const effectiveUserId = targetUserId ?? user.id;
@@ -96,7 +97,7 @@ export async function PATCH(request: NextRequest) {
 
   const update: Record<string, unknown> = {};
   if (date !== undefined) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayStr();
     if (date > today) return NextResponse.json({ error: { code: "FUTURE_DATE", message: "미래 날짜는 선택할 수 없습니다" } }, { status: 400 });
     update.date = date;
   }

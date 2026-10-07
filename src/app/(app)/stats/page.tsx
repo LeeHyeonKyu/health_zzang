@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toDateStr } from "@/lib/utils";
 import { calcMemberPenalties } from "@/lib/penalty";
 
 export default async function StatsPage() {
@@ -83,7 +83,7 @@ export default async function StatsPage() {
     const checkDate = new Date(now);
     checkDate.setHours(0, 0, 0, 0);
     for (let i = 0; i < 365; i++) {
-      const ds = checkDate.toISOString().split("T")[0];
+      const ds = toDateStr(checkDate);
       if (myDates.includes(ds)) {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);

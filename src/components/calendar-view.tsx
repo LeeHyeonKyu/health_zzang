@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { todayStr } from "@/lib/utils";
 
 interface Props {
   workoutDates: string[];
@@ -74,7 +75,7 @@ export default function CalendarView({ workoutDates, onDateSelect, selectedDate 
           const dateStr = formatDateStr(day);
           const hasWorkout = workoutSet.has(dateStr);
           const isSelected = selectedDate === dateStr;
-          const isToday = dateStr === new Date().toISOString().split("T")[0];
+          const isToday = dateStr === todayStr();
 
           return (
             <button

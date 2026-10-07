@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { todayStr } from "@/lib/utils";
 
 export default function CreateSeasonForm() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function CreateSeasonForm() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">시작일</label>
-          <input name="start_date" type="date" defaultValue={new Date().toISOString().split("T")[0]} required className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+          <input name="start_date" type="date" defaultValue={todayStr()} required className="w-full mt-1 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-sm bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
         </div>
         <div>
           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">종료일 (선택)</label>
