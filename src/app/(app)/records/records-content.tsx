@@ -266,8 +266,8 @@ function WeeklyView({
       </div>
 
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-        <div className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
-          <div className="py-2 px-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">크루원</div>
+        <div className="grid grid-cols-[4rem_repeat(7,_1fr)] text-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
+          <div className="py-2 px-1 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">크루원</div>
           {DAY_LABELS.map((d, i) => {
             const isToday = weekDates[i] === todayStr();
             const isSat = i === 5;
@@ -290,11 +290,11 @@ function WeeklyView({
           return (
             <div
               key={member.id}
-              className={`grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-50 dark:border-gray-800 last:border-0 ${isExempted ? "opacity-50" : ""} ${isMe ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}
+              className={`grid grid-cols-[4rem_repeat(7,_1fr)] text-center border-b border-gray-50 dark:border-gray-800 last:border-0 ${isExempted ? "opacity-50" : ""} ${isMe ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}
             >
               <button
                 onClick={() => onMemberClick(member.id)}
-                className="py-2.5 px-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate"
+                className="py-2.5 px-1 text-left text-[11px] font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 whitespace-nowrap overflow-visible"
               >
                 {member.nickname}
                 {isMe && <span className="text-gray-400 dark:text-gray-500 ml-0.5">(나)</span>}
