@@ -64,23 +64,45 @@ export default function WorkoutForm({ crewMembers }: Props) {
   const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [compressing, setCompressing] = useState(false);
+  const [compressProgress, setCompressProgress] = useState(0);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newFiles = Array.from(e.target.files ?? []);
     const accepted: MediaFile[] = [];
     let compressed = false;
 
+    const infoMessages: string[] = [];
+
     for (const file of newFiles) {
       let processedFile = file;
       const isImage = file.type.startsWith("image");
+      const isVideo = file.type.startsWith("video");
 
       if (isImage && file.size > 1024 * 1024) {
         processedFile = await compressImage(file);
         if (processedFile.size < file.size) compressed = true;
       }
 
+      if (isVideo && file.size > 5 * 1024 * 1024) {
+        setCompressing(true);
+        setCompressProgress(0);
+        setError("");
+        try {
+          const { compressVideo } = await import("@/lib/video-compress");
+          const result = await compressVideo(file, setCompressProgress);
+          processedFile = result.file;
+          if (!result.skipped) {
+            infoMessages.push(`영상 압축: ${formatFileSize(result.originalSize)} → ${formatFileSize(result.compressedSize)}`);
+          }
+        } catch {
+          // Compression failed, use original
+        }
+        setCompressing(false);
+      }
+
       if (processedFile.size > MAX_FILE_SIZE) {
-        setError(`파일이 20MB를 초과합니다 (${formatFileSize(processedFile.size)})`);
+        setError(`파일이 20MB를 초과합니다 (${formatFileSize(processedFile.size)}). 촬영 설정에서 해상도를 낮춰주세요.`);
         continue;
       }
 
@@ -91,9 +113,10 @@ export default function WorkoutForm({ crewMembers }: Props) {
       });
     }
 
-    if (compressed) {
-      setInfo("이미지가 자동으로 압축되었습니다.");
-      setTimeout(() => setInfo(""), 3000);
+    if (compressed) infoMessages.push("이미지 자동 압축됨");
+    if (infoMessages.length > 0) {
+      setInfo(infoMessages.join(" · "));
+      setTimeout(() => setInfo(""), 5000);
     }
 
     setFiles((prev) => [...prev, ...accepted]);
@@ -207,7 +230,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
           className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
         >
           <p className="text-gray-500 dark:text-gray-400 text-sm">탭하여 사진/영상 추가</p>
-          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">이미지는 자동 압축 · 최대 20MB</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">이미지·영상 자동 압축</p>
         </div>
         <input
           ref={fileInputRef}
@@ -244,6 +267,18 @@ export default function WorkoutForm({ crewMembers }: Props) {
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500">총 {formatFileSize(totalBytes)}</p>
         </>
+      )}
+
+      {compressing && (
+        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-lg p-3">
+          <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">영상 압축 중... {Math.round(compressProgress * 100)}%</p>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all"
+              style={{ width: `${Math.round(compressProgress * 100)}%` }}
+            />
+          </div>
+        </div>
       )}
 
       <div>
