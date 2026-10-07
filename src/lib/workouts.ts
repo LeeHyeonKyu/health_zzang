@@ -58,7 +58,7 @@ export async function getCrewFeedWithMedia(
   supabase: SupabaseClient,
   crewId: string,
   seasonId?: string,
-  limit = 50
+  limit = 500
 ): Promise<FeedItem[]> {
   let query = supabase
     .from("workout")

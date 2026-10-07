@@ -30,7 +30,7 @@ export default async function FeedPage() {
   const supabase = await createClient();
 
   const [feedItems, { data: avatarProfiles }] = await Promise.all([
-    getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id, 100),
+    getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id),
     supabase.from("profiles").select("id, avatar_r2_key").eq("crew_id", profile.crew_id).not("avatar_r2_key", "is", null),
   ]);
 
