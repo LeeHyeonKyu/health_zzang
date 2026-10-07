@@ -9,6 +9,8 @@ interface WeekRule {
   target_count: number;
   penalty_per_miss: number;
   reward_per_extra: number;
+  progressive_penalty: boolean;
+  progressive_step: number;
   isOverride: boolean;
 }
 
@@ -39,6 +41,8 @@ export default function SeasonRulesForm({ seasonId, defaultValues, progressivePe
   const [stepValue, setStepValue] = useState(initialStep);
   const [loading, setLoading] = useState(false);
   const [editingWeek, setEditingWeek] = useState<string | null>(null);
+  const [editProgressive, setEditProgressive] = useState(false);
+  const [editStep, setEditStep] = useState(1000);
   const [weekMessage, setWeekMessage] = useState("");
 
   async function handleDefaultSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -79,6 +83,8 @@ export default function SeasonRulesForm({ seasonId, defaultValues, progressivePe
       target_count: Number(form.get("target_count")),
       penalty_per_miss: Number(form.get("penalty_per_miss")),
       reward_per_extra: Number(form.get("reward_per_extra")) || 0,
+      progressive_penalty: editProgressive,
+      progressive_step: editProgressive ? editStep : null,
     };
 
     const res = await fetch("/api/weekly-rule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -165,6 +171,26 @@ export default function SeasonRulesForm({ seasonId, defaultValues, progressivePe
                       <button type="button" onClick={() => setEditingWeek(null)} className="text-xs text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:text-gray-500">취소</button>
                     </div>
                     <RuleInputs prefix="" defaults={{ target_count: week.target_count, penalty_per_miss: week.penalty_per_miss, reward_per_extra: week.reward_per_extra }} />
+                    <label className="flex items-center gap-2 cursor-pointer py-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditProgressive(!editProgressive)}
+                        className={`relative w-8 h-4 rounded-full transition-colors ${editProgressive ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"}`}
+                      >
+                        <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${editProgressive ? "translate-x-4" : ""}`} />
+                      </button>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400">누적</span>
+                      {editProgressive && (
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          value={editStep}
+                          onChange={(e) => setEditStep(Number(e.target.value))}
+                          className="input-base w-20 text-[10px] py-1"
+                        />
+                      )}
+                    </label>
                     {weekMessage && <p className={`text-sm ${weekMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>{weekMessage}</p>}
                     <button type="submit" disabled={loading} className="w-full py-2 rounded-lg bg-gray-700 text-white text-xs font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
                       {loading ? "저장 중..." : "저장"}
@@ -178,9 +204,10 @@ export default function SeasonRulesForm({ seasonId, defaultValues, progressivePe
                         {week.target_count}회 / {week.penalty_per_miss.toLocaleString()}원
                         {week.reward_per_extra > 0 && ` / -${week.reward_per_extra.toLocaleString()}원`}
                       </span>
+                      {week.progressive_penalty && <span className="text-[10px] text-purple-600 dark:text-purple-400 ml-1">누적 +{week.progressive_step.toLocaleString()}원</span>}
                       {week.isOverride && <span className="text-[10px] text-blue-600 ml-1">수정됨</span>}
                     </div>
-                    <button onClick={() => { setEditingWeek(week.weekStart); setWeekMessage(""); }} className="text-xs text-blue-600 hover:underline">수정</button>
+                    <button onClick={() => { setEditingWeek(week.weekStart); setEditProgressive(week.progressive_penalty); setEditStep(week.progressive_step); setWeekMessage(""); }} className="text-xs text-blue-600 hover:underline">수정</button>
                   </div>
                 )}
               </div>

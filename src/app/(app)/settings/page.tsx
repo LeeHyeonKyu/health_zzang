@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
   const weekStart = getWeekStart();
   let currentOverride = null;
-  const pastWeeks: { weekStart: string; weekLabel: string; target_count: number; penalty_per_miss: number; reward_per_extra: number; isOverride: boolean }[] = [];
+  const pastWeeks: { weekStart: string; weekLabel: string; target_count: number; penalty_per_miss: number; reward_per_extra: number; progressive_penalty: boolean; progressive_step: number; isOverride: boolean }[] = [];
 
   if (activeSeason) {
     const supabase = await createClient();
@@ -46,6 +46,8 @@ export default async function SettingsPage() {
         target_count: ov?.target_count ?? activeSeason.default_target_count,
         penalty_per_miss: ov?.penalty_per_miss ?? activeSeason.default_penalty_per_miss,
         reward_per_extra: ov?.reward_per_extra ?? activeSeason.default_reward_per_extra,
+        progressive_penalty: ov?.progressive_penalty ?? activeSeason.progressive_penalty ?? false,
+        progressive_step: ov?.progressive_step ?? activeSeason.progressive_step ?? 1000,
         isOverride: !!ov,
       });
     }
