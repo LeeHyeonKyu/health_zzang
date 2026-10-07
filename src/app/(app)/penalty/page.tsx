@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
+import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
 import PenaltyContent from "./penalty-content";
 
 export default async function PenaltyPage() {
@@ -17,16 +17,17 @@ export default async function PenaltyPage() {
 
   if (!activeSeason) {
     return (
-      <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-        <p className="text-gray-500">현재 진행 중인 시즌이 없습니다.</p>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-8 text-center shadow-sm border border-gray-100 dark:border-gray-800">
+        <p className="text-gray-500 dark:text-gray-400">현재 진행 중인 시즌이 없습니다.</p>
       </div>
     );
   }
 
   const supabase = await createClient();
-  const [{ data: workouts }, { data: weeklyRules }] = await Promise.all([
+  const [{ data: workouts }, { data: weeklyRules }, exemptions] = await Promise.all([
     supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
+    getExemptions(activeSeason.id),
   ]);
 
   return (
@@ -46,6 +47,7 @@ export default async function PenaltyPage() {
         penalty_per_miss: r.penalty_per_miss,
         reward_per_extra: r.reward_per_extra,
       }))}
+      exemptions={exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start, reason: e.reason }))}
     />
   );
 }

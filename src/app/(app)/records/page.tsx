@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
+import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
 import { getCrewFeedWithMedia, type FeedItem } from "@/lib/workouts";
 import RecordsContent from "./records-content";
 
@@ -18,15 +18,18 @@ export default async function RecordsPage() {
 
   let allWorkouts: { user_id: string; date: string; id: string }[] = [];
   let feedItems: FeedItem[] = [];
+  let exemptions: { user_id: string; week_start: string; reason: string }[] = [];
 
   if (activeSeason) {
     const supabase = await createClient();
-    const [{ data: workouts }, feed] = await Promise.all([
+    const [{ data: workouts }, feed, exs] = await Promise.all([
       supabase.from("workout").select("id, user_id, date").eq("season_id", activeSeason.id).order("date", { ascending: false }),
       getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id, 100),
+      getExemptions(activeSeason.id),
     ]);
     allWorkouts = workouts ?? [];
     feedItems = feed;
+    exemptions = exs;
   }
 
   return (
@@ -37,6 +40,7 @@ export default async function RecordsPage() {
       seasonStartDate={activeSeason?.start_date ?? null}
       allWorkouts={allWorkouts}
       feedItems={feedItems}
+      exemptions={exemptions}
     />
   );
 }

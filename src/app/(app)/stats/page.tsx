@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
+import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
 import { formatCurrency, getWeekStart } from "@/lib/utils";
 
 export default async function StatsPage() {
@@ -26,10 +26,13 @@ export default async function StatsPage() {
   }
 
   const supabase = await createClient();
-  const [{ data: workouts }, { data: weeklyRules }] = await Promise.all([
+  const [{ data: workouts }, { data: weeklyRules }, exemptions] = await Promise.all([
     supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
+    getExemptions(activeSeason.id),
   ]);
+
+  const exemptionSet = new Set(exemptions.map((e) => `${e.user_id}:${e.week_start}`));
 
   const allWorkouts = workouts ?? [];
   const ruleMap = new Map((weeklyRules ?? []).map((r) => [r.week_start, r]));
@@ -79,6 +82,7 @@ export default async function StatsPage() {
     const count = allWorkouts.filter((w) => w.user_id === m.id).length;
     let totalPenalty = 0;
     for (const ws of completedWeeks) {
+      if (exemptionSet.has(`${m.id}:${ws}`)) continue;
       const we = getWeekEnd(ws);
       const rule = getRuleForWeek(ws);
       const weekCount = allWorkouts.filter((w) => w.user_id === m.id && w.date >= ws && w.date <= we).length;

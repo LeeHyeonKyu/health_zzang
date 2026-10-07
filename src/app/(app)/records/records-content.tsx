@@ -19,6 +19,12 @@ interface Workout {
   id: string;
 }
 
+interface Exemption {
+  user_id: string;
+  week_start: string;
+  reason: string;
+}
+
 interface Props {
   currentUserId: string;
   members: Member[];
@@ -26,6 +32,7 @@ interface Props {
   seasonStartDate: string | null;
   allWorkouts: Workout[];
   feedItems: FeedItem[];
+  exemptions: Exemption[];
 }
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
@@ -49,6 +56,7 @@ export default function RecordsContent({
   seasonStartDate,
   allWorkouts,
   feedItems,
+  exemptions,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("weekly");
   const [myOnly, setMyOnly] = useState(false);
@@ -185,6 +193,8 @@ export default function RecordsContent({
           workouts={filteredWorkouts}
           currentUserId={currentUserId}
           onMemberClick={setSelectedMember}
+          exemptions={exemptions}
+          weekStartStr={toDateStr(currentWeekStart)}
         />
       )}
 
@@ -216,6 +226,8 @@ function WeeklyView({
   workouts,
   currentUserId,
   onMemberClick,
+  exemptions,
+  weekStartStr,
 }: {
   weekDates: string[];
   weekLabel: string;
@@ -225,7 +237,12 @@ function WeeklyView({
   workouts: Workout[];
   currentUserId: string;
   onMemberClick: (id: string) => void;
+  exemptions: Exemption[];
+  weekStartStr: string;
 }) {
+  const exemptedUserIds = new Set(
+    exemptions.filter((e) => e.week_start === weekStartStr).map((e) => e.user_id)
+  );
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -256,11 +273,12 @@ function WeeklyView({
           const memberWorkouts = workouts.filter((w) => w.user_id === member.id);
           const workoutDateSet = new Set(memberWorkouts.map((w) => w.date));
           const isMe = member.id === currentUserId;
+          const isExempted = exemptedUserIds.has(member.id);
 
           return (
             <div
               key={member.id}
-              className={`grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-50 dark:border-gray-800 last:border-0 ${isMe ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}
+              className={`grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-50 dark:border-gray-800 last:border-0 ${isExempted ? "opacity-50" : ""} ${isMe ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}
             >
               <button
                 onClick={() => onMemberClick(member.id)}
@@ -268,6 +286,7 @@ function WeeklyView({
               >
                 {member.nickname}
                 {isMe && <span className="text-gray-400 dark:text-gray-500 ml-0.5">(나)</span>}
+                {isExempted && <span className="ml-0.5">🏥</span>}
               </button>
               {weekDates.map((date) => (
                 <div key={date} className="py-2.5 flex items-center justify-center">

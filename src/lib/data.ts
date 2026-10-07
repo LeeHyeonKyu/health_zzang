@@ -55,3 +55,14 @@ export const getCrewMembers = cache(async (crewId: string) => {
     return data ?? [];
   });
 });
+
+export const getExemptions = cache(async (seasonId: string) => {
+  return timed("getExemptions", async () => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("week_exemption")
+      .select("user_id, week_start, reason")
+      .eq("season_id", seasonId);
+    return data ?? [];
+  });
+});
