@@ -133,16 +133,22 @@ export async function DELETE(request: NextRequest) {
   if (!workout) return NextResponse.json({ error: { code: "NOT_FOUND", message: "기록을 찾을 수 없습니다" } }, { status: 404 });
   if (workout.user_id !== user.id) return NextResponse.json({ error: { code: "FORBIDDEN", message: "본인의 기록만 삭제할 수 있습니다" } }, { status: 403 });
 
-  // cascade: 태그로 생성된 연결 workout도 함께 삭제
-  const { data: taggedWorkouts } = await supabase.from("workout").select("id").eq("source_workout_id", workoutId);
+  const adminClient = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  // cascade: 태그로 생성된 연결 workout도 함께 삭제 (다른 유저 소유이므로 service_role 사용)
+  const { data: taggedWorkouts } = await adminClient.from("workout").select("id").eq("source_workout_id", workoutId);
   if (taggedWorkouts && taggedWorkouts.length > 0) {
     const taggedIds = taggedWorkouts.map((w) => w.id);
-    await supabase.from("media").delete().in("workout_id", taggedIds);
-    await supabase.from("workout").delete().in("id", taggedIds);
+    await adminClient.from("media").delete().in("workout_id", taggedIds);
+    await adminClient.from("workout").delete().in("id", taggedIds);
   }
 
-  await supabase.from("media").delete().eq("workout_id", workoutId);
-  const { error } = await supabase.from("workout").delete().eq("id", workoutId);
+  await adminClient.from("media").delete().eq("workout_id", workoutId);
+  const { error } = await adminClient.from("workout").delete().eq("id", workoutId);
   if (error) return NextResponse.json({ error: { code: "DELETE_FAILED", message: error.message } }, { status: 500 });
 
   revalidatePath("/records");
