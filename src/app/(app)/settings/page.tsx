@@ -1,9 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUser, getProfile, getActiveSeason } from "@/lib/data";
+import { getReadUrl } from "@/lib/r2";
 import CreateSeasonForm from "./create-season-form";
 import SeasonInfoForm from "./season-info-form";
 import SeasonRulesForm from "./season-rules-form";
 import ChangePasswordForm from "./change-password-form";
+import AvatarUpload from "./avatar-upload";
 import SettingsTabs from "./settings-tabs";
 import LogoutButton from "@/components/logout-button";
 import { getWeekStart, getWeekEnd, getAllWeeks, formatWeekLabel, formatDateShort } from "@/lib/utils";
@@ -95,19 +97,21 @@ export default async function SettingsPage() {
   );
 
   const loginId = user.email?.replace("@health.zzang", "") ?? "";
+  const avatarUrl = profile.avatar_r2_key ? await getReadUrl(profile.avatar_r2_key) : null;
 
   const accountTab = (
     <div className="space-y-6">
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
-        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">내 정보</h3>
-        <div className="space-y-3 text-sm">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">프로필</h3>
+        <AvatarUpload currentAvatarUrl={avatarUrl} nickname={profile.nickname} />
+        <div className="space-y-3 text-sm mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
           <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-800">
             <span className="text-gray-500 dark:text-gray-400">ID</span>
             <span className="font-mono font-medium text-gray-900 dark:text-gray-100">{loginId}</span>
           </div>
           <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-800">
             <span className="text-gray-500 dark:text-gray-400">이름</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">{profile?.nickname}</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">{profile.nickname}</span>
           </div>
           <div className="flex justify-between py-2">
             <span className="text-gray-500 dark:text-gray-400">User ID</span>
