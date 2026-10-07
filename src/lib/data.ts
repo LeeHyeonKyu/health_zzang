@@ -51,7 +51,8 @@ export const getCrewMembers = cache(async (crewId: string) => {
     const { data } = await supabase
       .from("profiles")
       .select("id, nickname")
-      .eq("crew_id", crewId);
+      .eq("crew_id", crewId)
+      .order("nickname");
     return data ?? [];
   });
 });

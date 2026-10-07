@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
 import WorkoutDetail from "@/components/workout-detail";
-import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, getWeekEnd, toDateStr, todayStr } from "@/lib/utils";
+import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, getWeekStart, getWeekEnd, toDateStr, todayStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
 type ViewMode = "weekly" | "monthly";
@@ -130,6 +130,8 @@ export default function RecordsContent({
           currentUserId={currentUserId}
           exemptions={exemptions}
           weekStartStr={toDateStr(currentWeekStart)}
+          seasonStartDate={seasonStartDate}
+          currentWeekStartStr={toDateStr(currentWeekStart)}
         />
       )}
 
@@ -157,6 +159,8 @@ function WeeklyView({
   currentUserId,
   exemptions,
   weekStartStr,
+  seasonStartDate,
+  currentWeekStartStr,
 }: {
   weekDates: string[];
   weekLabel: string;
@@ -167,6 +171,8 @@ function WeeklyView({
   currentUserId: string;
   exemptions: Exemption[];
   weekStartStr: string;
+  seasonStartDate: string | null;
+  currentWeekStartStr: string;
 }) {
   const exemptedUserIds = new Set(
     exemptions.filter((e) => e.week_start === weekStartStr).map((e) => e.user_id)
@@ -174,7 +180,11 @@ function WeeklyView({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400">◀</button>
+        <button
+          onClick={() => setWeekOffset(weekOffset - 1)}
+          disabled={seasonStartDate ? currentWeekStartStr <= getWeekStart(new Date(seasonStartDate + "T00:00:00")) : false}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400 disabled:opacity-20 disabled:cursor-not-allowed"
+        >◀</button>
         <div className="text-center">
           <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{weekLabel}</span>
           {weekOffset !== 0 && (
