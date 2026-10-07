@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { todayStr } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
@@ -56,14 +57,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (validTags.length > 0) {
-    const { data: taggerProfile } = await supabase.from("profiles").select("nickname").eq("id", effectiveUserId).single();
+    const adminClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: taggerProfile } = await adminClient.from("profiles").select("nickname").eq("id", effectiveUserId).single();
     const taggerName = taggerProfile?.nickname ?? "크루원";
 
     for (const taggedUserId of validTags) {
-      const { data: existingTagged } = await supabase.from("workout").select("id").eq("user_id", taggedUserId).eq("date", date).single();
+      const { data: existingTagged } = await adminClient.from("workout").select("id").eq("user_id", taggedUserId).eq("date", date).single();
       if (existingTagged) continue;
 
-      await supabase.from("workout").insert({
+      await adminClient.from("workout").insert({
         user_id: taggedUserId,
         season_id: activeSeason.id,
         date,

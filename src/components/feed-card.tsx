@@ -60,6 +60,10 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick }:
 
         {media.length > 1 && (
           <>
+            <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+              {currentIndex + 1}/{media.length}
+            </span>
+
             {currentIndex > 0 && (
               <button onClick={() => goTo(currentIndex - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white text-sm flex items-center justify-center">
                 ‹
