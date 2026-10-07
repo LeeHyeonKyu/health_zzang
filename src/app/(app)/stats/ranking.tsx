@@ -24,16 +24,6 @@ export default function Ranking({ members, currentUserId }: { members: Member[];
         <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">크루 랭킹</h3>
         <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
           <button
-            onClick={() => setSortBy("count")}
-            className={`px-3 py-1.5 font-medium transition-colors ${
-              sortBy === "count"
-                ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-            }`}
-          >
-            운동 횟수
-          </button>
-          <button
             onClick={() => setSortBy("penalty")}
             className={`px-3 py-1.5 font-medium transition-colors ${
               sortBy === "penalty"
@@ -42,6 +32,16 @@ export default function Ranking({ members, currentUserId }: { members: Member[];
             }`}
           >
             벌금
+          </button>
+          <button
+            onClick={() => setSortBy("count")}
+            className={`px-3 py-1.5 font-medium transition-colors ${
+              sortBy === "count"
+                ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+            }`}
+          >
+            운동 횟수
           </button>
         </div>
       </div>
