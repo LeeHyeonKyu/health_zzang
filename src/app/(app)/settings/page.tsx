@@ -121,7 +121,7 @@ export default async function SettingsPage() {
       </div>
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
         <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">비밀번호 변경</h3>
-        <ChangePasswordForm />
+        <ChangePasswordForm userEmail={user.email ?? ""} loginId={loginId} />
       </div>
       <LogoutButton />
     </div>
