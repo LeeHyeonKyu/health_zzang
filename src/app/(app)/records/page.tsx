@@ -16,14 +16,14 @@ export default async function RecordsPage() {
     getCrewMembers(profile.crew_id),
   ]);
 
-  let allWorkouts: { user_id: string; date: string; id: string }[] = [];
+  let allWorkouts: { user_id: string; date: string; id: string; tagged_with?: string[] }[] = [];
   let feedItems: FeedItem[] = [];
   let exemptions: { user_id: string; week_start: string; reason: string }[] = [];
 
   if (activeSeason) {
     const supabase = await createClient();
     const [{ data: workouts }, feed, exs] = await Promise.all([
-      supabase.from("workout").select("id, user_id, date").eq("season_id", activeSeason.id).order("date", { ascending: false }),
+      supabase.from("workout").select("id, user_id, date, tagged_with").eq("season_id", activeSeason.id).order("date", { ascending: false }),
       getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id, 100),
       getExemptions(activeSeason.id),
     ]);

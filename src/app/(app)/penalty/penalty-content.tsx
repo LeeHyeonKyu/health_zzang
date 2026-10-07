@@ -7,7 +7,7 @@ import { calcMemberPenalties } from "@/lib/penalty";
 type PenaltyView = "cumulative" | "weekly";
 
 interface Member { id: string; nickname: string }
-interface Workout { user_id: string; date: string }
+interface Workout { user_id: string; date: string; tagged_with?: string[] }
 interface WeeklyRule { week_start: string; target_count: number; penalty_per_miss: number; reward_per_extra: number }
 interface Exemption { user_id: string; week_start: string; reason: string }
 
@@ -104,7 +104,12 @@ export default function PenaltyContent({
     return members.map((m) => {
       const exempt = isExempted(m.id, selectedWeek);
       const reason = getExemptionReason(m.id, selectedWeek);
-      const count = workouts.filter((w) => w.user_id === m.id && w.date >= selectedWeek && w.date <= selectedWeekEnd).length;
+      const dates = new Set(
+        workouts
+          .filter((w) => w.date >= selectedWeek && w.date <= selectedWeekEnd && (w.user_id === m.id || (w.tagged_with ?? []).includes(m.id)))
+          .map((w) => w.date)
+      );
+      const count = dates.size;
       const penalty = (isSelectedWeekCurrent || exempt) ? 0 : calcPenalty(count, selectedRule);
       return { ...m, count, penalty, exempt, exemptReason: reason };
     }).sort((a, b) => {

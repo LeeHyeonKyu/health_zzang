@@ -200,6 +200,21 @@ export default function WorkoutForm({ crewMembers }: Props) {
         </div>
       )}
 
+      {files.length > 0 && (() => {
+        const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
+        const largeVideos = files.filter((f) => f.type === "video" && f.file.size > 20 * 1024 * 1024);
+        return (
+          <div className="space-y-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500">총 {formatFileSize(totalBytes)}</p>
+            {largeVideos.length > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                ⚠️ 영상이 큽니다 ({largeVideos.map((f) => formatFileSize(f.file.size)).join(", ")}). 촬영 설정에서 해상도를 낮추면 용량을 줄일 수 있습니다.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       <div>
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">운동 내용 (선택)</label>
         <textarea

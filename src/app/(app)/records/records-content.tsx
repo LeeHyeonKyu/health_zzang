@@ -346,6 +346,7 @@ function MonthlyView({
                   date={item.date}
                   note={item.note}
                   media={item.media}
+                  taggedNames={item.taggedNames}
                   onMemberClick={() => {}}
                   onCardClick={() => onCardClick(item)}
                 />
@@ -403,6 +404,7 @@ function FeedView({
               date={item.date}
               note={item.note}
               media={item.media}
+              taggedNames={item.taggedNames}
               onMemberClick={() => onMemberClick(item.userId)}
               onCardClick={() => onCardClick(item)}
             />

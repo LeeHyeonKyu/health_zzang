@@ -29,7 +29,7 @@ export default async function StatsPage() {
 
   const supabase = await createClient();
   const [{ data: workouts }, { data: weeklyRules }, exemptions] = await Promise.all([
-    supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id),
+    supabase.from("workout").select("user_id, date, tagged_with").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
     getExemptions(activeSeason.id),
   ]);
@@ -49,7 +49,7 @@ export default async function StatsPage() {
     defaultPenaltyPerMiss: activeSeason.default_penalty_per_miss,
     defaultRewardPerExtra: activeSeason.default_reward_per_extra,
     members: members.map((m) => ({ id: m.id, nickname: m.nickname })),
-    workouts: allWorkouts.map((w) => ({ user_id: w.user_id, date: w.date })),
+    workouts: allWorkouts.map((w) => ({ user_id: w.user_id, date: w.date, tagged_with: w.tagged_with ?? [] })),
     weeklyRules: (weeklyRules ?? []).map((r) => ({
       week_start: r.week_start,
       target_count: r.target_count,
@@ -60,7 +60,12 @@ export default async function StatsPage() {
   });
 
   const memberStats = penaltyResults.map((p) => {
-    const count = allWorkouts.filter((w) => w.user_id === p.id).length;
+    const dates = new Set(
+      allWorkouts
+        .filter((w) => w.user_id === p.id || (w.tagged_with ?? []).includes(p.id))
+        .map((w) => w.date)
+    );
+    const count = dates.size;
     return {
       id: p.id,
       nickname: p.nickname,
@@ -71,11 +76,11 @@ export default async function StatsPage() {
   });
 
   const myStats = memberStats.find((m) => m.id === user.id);
-  const myDates = allWorkouts
-    .filter((w) => w.user_id === user.id)
-    .map((w) => w.date)
-    .sort()
-    .reverse();
+  const myDates = [...new Set(
+    allWorkouts
+      .filter((w) => w.user_id === user.id || (w.tagged_with ?? []).includes(user.id))
+      .map((w) => w.date)
+  )].sort().reverse();
 
   let streak = 0;
   if (myDates.length > 0) {

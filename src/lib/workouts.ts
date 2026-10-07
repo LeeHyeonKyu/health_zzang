@@ -11,6 +11,7 @@ export interface WorkoutWithMedia {
 export interface FeedItem extends WorkoutWithMedia {
   nickname: string;
   userId: string;
+  taggedNames: string[];
 }
 
 export async function getWorkoutsWithMedia(
@@ -61,7 +62,7 @@ export async function getCrewFeedWithMedia(
 ): Promise<FeedItem[]> {
   let query = supabase
     .from("workout")
-    .select("id, date, note, user_id")
+    .select("id, date, note, user_id, tagged_with")
     .order("date", { ascending: false })
     .limit(limit);
 
@@ -72,11 +73,19 @@ export async function getCrewFeedWithMedia(
   const { data: workouts } = await query;
   if (!workouts || workouts.length === 0) return [];
 
-  const userIds = [...new Set(workouts.map((w) => w.user_id))];
+  // Collect all user IDs (creators + tagged)
+  const allUserIds = new Set<string>();
+  for (const w of workouts) {
+    allUserIds.add(w.user_id);
+    for (const t of (w.tagged_with ?? [])) {
+      allUserIds.add(t);
+    }
+  }
+
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, nickname")
-    .in("id", userIds);
+    .in("id", [...allUserIds]);
 
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p.nickname]));
 
@@ -104,6 +113,10 @@ export async function getCrewFeedWithMedia(
       }))
     );
 
+    const taggedNames = (workout.tagged_with ?? [])
+      .map((id: string) => profileMap.get(id))
+      .filter(Boolean) as string[];
+
     result.push({
       id: workout.id,
       date: workout.date,
@@ -111,6 +124,7 @@ export async function getCrewFeedWithMedia(
       nickname: profileMap.get(workout.user_id) ?? "알 수 없음",
       userId: workout.user_id,
       media,
+      taggedNames,
     });
   }
 

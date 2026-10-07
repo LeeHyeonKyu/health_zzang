@@ -9,7 +9,7 @@ export interface PenaltyInput {
   defaultPenaltyPerMiss: number;
   defaultRewardPerExtra: number;
   members: { id: string; nickname: string }[];
-  workouts: { user_id: string; date: string }[];
+  workouts: { user_id: string; date: string; tagged_with?: string[] }[];
   weeklyRules: { week_start: string; target_count: number; penalty_per_miss: number; reward_per_extra: number }[];
   exemptions: { user_id: string; week_start: string }[];
 }
@@ -60,9 +60,12 @@ export function calcMemberPenalties(input: PenaltyInput): MemberPenalty[] {
       const penaltyPerMiss = override?.penalty_per_miss ?? defaultPenaltyPerMiss;
       const rewardPerExtra = override?.reward_per_extra ?? defaultRewardPerExtra;
 
-      const count = workouts.filter(
-        (w) => w.user_id === m.id && w.date >= ws && w.date <= we
-      ).length;
+      const dates = new Set(
+        workouts
+          .filter((w) => w.date >= ws && w.date <= we && (w.user_id === m.id || (w.tagged_with ?? []).includes(m.id)))
+          .map((w) => w.date)
+      );
+      const count = dates.size;
 
       totalWorkouts += count;
       const missed = Math.max(0, target - count);

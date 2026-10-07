@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { todayStr } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
@@ -31,9 +30,6 @@ export async function POST(request: NextRequest) {
   const { data: activeSeason } = await supabase.from("season").select("id").eq("crew_id", profile.crew_id).eq("is_active", true).single();
   if (!activeSeason) return NextResponse.json({ error: { code: "NO_ACTIVE_SEASON", message: "진행 중인 시즌이 없습니다" } }, { status: 400 });
 
-  const { data: existing } = await supabase.from("workout").select("id").eq("user_id", effectiveUserId).eq("date", date).single();
-  if (existing) return NextResponse.json({ error: { code: "DUPLICATE_DATE", message: "이미 인증한 날짜입니다" } }, { status: 400 });
-
   const validTags = (tagged_with ?? []).filter((id) => id !== effectiveUserId);
 
   const { data: workout, error: workoutError } = await supabase.from("workout").insert({
@@ -54,31 +50,6 @@ export async function POST(request: NextRequest) {
       size_bytes: m.size_bytes,
     }));
     await supabase.from("media").insert(mediaInserts);
-  }
-
-  if (validTags.length > 0) {
-    const adminClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
-    const { data: taggerProfile } = await adminClient.from("profiles").select("nickname").eq("id", effectiveUserId).single();
-    const taggerName = taggerProfile?.nickname ?? "크루원";
-
-    for (const taggedUserId of validTags) {
-      const { data: existingTagged } = await adminClient.from("workout").select("id").eq("user_id", taggedUserId).eq("date", date).single();
-      if (existingTagged) continue;
-
-      await adminClient.from("workout").insert({
-        user_id: taggedUserId,
-        season_id: activeSeason.id,
-        date,
-        note: `${taggerName}님과 함께`,
-        source_workout_id: workout.id,
-        tagged_with: [],
-      });
-    }
   }
 
   revalidatePath("/records");
@@ -133,22 +104,8 @@ export async function DELETE(request: NextRequest) {
   if (!workout) return NextResponse.json({ error: { code: "NOT_FOUND", message: "기록을 찾을 수 없습니다" } }, { status: 404 });
   if (workout.user_id !== user.id) return NextResponse.json({ error: { code: "FORBIDDEN", message: "본인의 기록만 삭제할 수 있습니다" } }, { status: 403 });
 
-  const adminClient = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
-
-  // cascade: 태그로 생성된 연결 workout도 함께 삭제 (다른 유저 소유이므로 service_role 사용)
-  const { data: taggedWorkouts } = await adminClient.from("workout").select("id").eq("source_workout_id", workoutId);
-  if (taggedWorkouts && taggedWorkouts.length > 0) {
-    const taggedIds = taggedWorkouts.map((w) => w.id);
-    await adminClient.from("media").delete().in("workout_id", taggedIds);
-    await adminClient.from("workout").delete().in("id", taggedIds);
-  }
-
-  await adminClient.from("media").delete().eq("workout_id", workoutId);
-  const { error } = await adminClient.from("workout").delete().eq("id", workoutId);
+  await supabase.from("media").delete().eq("workout_id", workoutId);
+  const { error } = await supabase.from("workout").delete().eq("id", workoutId);
   if (error) return NextResponse.json({ error: { code: "DELETE_FAILED", message: error.message } }, { status: 500 });
 
   revalidatePath("/records");

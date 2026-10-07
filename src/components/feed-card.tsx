@@ -15,11 +15,12 @@ interface Props {
   date: string;
   note: string | null;
   media: MediaItem[];
+  taggedNames?: string[];
   onMemberClick?: () => void;
   onCardClick?: () => void;
 }
 
-export default function FeedCard({ nickname, date, note, media, onMemberClick, onCardClick }: Props) {
+export default function FeedCard({ nickname, date, note, media, taggedNames, onMemberClick, onCardClick }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -98,6 +99,9 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick, o
           )}
           <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(date)}</span>
         </div>
+        {taggedNames && taggedNames.length > 0 && (
+          <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">with {taggedNames.join(", ")}</p>
+        )}
         {note && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{note}</p>}
         {onCardClick && <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2">탭하여 상세 보기</p>}
       </div>

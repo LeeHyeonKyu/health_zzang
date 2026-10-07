@@ -25,7 +25,7 @@ export default async function PenaltyPage() {
 
   const supabase = await createClient();
   const [{ data: workouts }, { data: weeklyRules }, exemptions] = await Promise.all([
-    supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id),
+    supabase.from("workout").select("user_id, date, tagged_with").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
     getExemptions(activeSeason.id),
   ]);
@@ -40,7 +40,7 @@ export default async function PenaltyPage() {
       defaultPenaltyPerMiss={activeSeason.default_penalty_per_miss}
       defaultRewardPerExtra={activeSeason.default_reward_per_extra}
       members={members.map((m) => ({ id: m.id, nickname: m.nickname }))}
-      workouts={(workouts ?? []).map((w) => ({ user_id: w.user_id, date: w.date }))}
+      workouts={(workouts ?? []).map((w) => ({ user_id: w.user_id, date: w.date, tagged_with: w.tagged_with ?? [] }))}
       weeklyRules={(weeklyRules ?? []).map((r) => ({
         week_start: r.week_start,
         target_count: r.target_count,
