@@ -72,6 +72,12 @@ export default async function StatsPage() {
 
   const penaltyResults = calcMemberPenalties(penaltyInput);
 
+  const completedWeeks = getCompletedWeeks(
+    getAllWeeks(activeSeason.start_date, activeSeason.end_date),
+    getCurrentWeekStart()
+  );
+  const ruleMap = new Map((weeklyRules ?? []).map((r) => [r.week_start, r]));
+
   const memberStats = penaltyResults.map((p) => {
     const dates = new Set(
       allWorkouts
@@ -79,6 +85,8 @@ export default async function StatsPage() {
         .map((w) => w.date)
     );
     const count = dates.size;
+    const memberExempted = new Set(exemptions.filter((e) => e.user_id === p.id).map((e) => e.week_start));
+    const activeWeeks = completedWeeks.filter((w) => !memberExempted.has(w)).length;
     return {
       id: p.id,
       nickname: p.nickname,
@@ -86,18 +94,14 @@ export default async function StatsPage() {
       totalPenalty: p.totalPenalty,
       totalWorkouts: p.totalWorkouts,
       exemptedWeeks: p.exemptedWeeks,
-      avgPerWeek: Math.round((count / weeksElapsed) * 10) / 10,
+      avgPerWeek: activeWeeks > 0 ? Math.round((count / activeWeeks) * 10) / 10 : 0,
+      activeWeeks,
     };
   });
 
   const myStats = memberStats.find((m) => m.id === user.id);
   const grandTotal = penaltyResults.reduce((sum, p) => sum + p.totalPenalty, 0);
 
-  const completedWeeks = getCompletedWeeks(
-    getAllWeeks(activeSeason.start_date, activeSeason.end_date),
-    getCurrentWeekStart()
-  );
-  const ruleMap = new Map((weeklyRules ?? []).map((r) => [r.week_start, r]));
   const myExemptedWeeks = new Set(exemptions.filter((e) => e.user_id === user.id).map((e) => e.week_start));
   const totalTarget = completedWeeks
     .filter((w) => !myExemptedWeeks.has(w))
