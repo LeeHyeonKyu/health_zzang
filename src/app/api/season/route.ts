@@ -105,6 +105,9 @@ export async function PATCH(request: NextRequest) {
     if (body.progressive_penalty !== undefined) {
       updateData.progressive_penalty = body.progressive_penalty;
     }
+    if (body.progressive_step !== undefined) {
+      updateData.progressive_step = body.progressive_step;
+    }
 
     const { error } = await supabase.from("season").update(updateData).eq("id", season_id);
 
@@ -125,6 +128,9 @@ export async function PATCH(request: NextRequest) {
     };
     if (body.progressive_penalty !== undefined) {
       migrationData.progressive_penalty = body.progressive_penalty;
+    }
+    if (body.progressive_step !== undefined) {
+      migrationData.progressive_step = body.progressive_step;
     }
 
     const { error } = await supabase.from("season").update(migrationData).eq("id", season_id);

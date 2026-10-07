@@ -60,6 +60,7 @@ export default async function StatsPage() {
     defaultPenaltyPerMiss: activeSeason.default_penalty_per_miss,
     defaultRewardPerExtra: activeSeason.default_reward_per_extra,
     progressivePenalty: activeSeason.progressive_penalty ?? false,
+    progressiveStep: activeSeason.progressive_step ?? 1000,
     members: members.map((m) => ({ id: m.id, nickname: m.nickname })),
     workouts: allWorkouts.map((w) => ({ user_id: w.user_id, date: w.date, tagged_with: w.tagged_with ?? [] })),
     weeklyRules: (weeklyRules ?? []).map((r) => ({
@@ -135,6 +136,7 @@ export default async function StatsPage() {
         defaultPenaltyPerMiss={activeSeason.default_penalty_per_miss}
         defaultRewardPerExtra={activeSeason.default_reward_per_extra}
         progressivePenalty={activeSeason.progressive_penalty ?? false}
+        progressiveStep={activeSeason.progressive_step ?? 1000}
         members={members.map((m) => ({ id: m.id, nickname: m.nickname }))}
         workouts={allWorkouts.map((w) => ({ user_id: w.user_id, date: w.date, tagged_with: w.tagged_with ?? [] }))}
         weeklyRules={(weeklyRules ?? []).map((r) => ({

@@ -20,6 +20,7 @@ interface Props {
     default_reward_per_extra: number;
   };
   progressivePenalty: boolean;
+  progressiveStep: number;
   weekStart: string;
   currentOverride: {
     target_count: number;
@@ -29,12 +30,13 @@ interface Props {
   pastWeeks: WeekRule[];
 }
 
-export default function SeasonRulesForm({ seasonId, defaultValues, progressivePenalty: initialProgressive, weekStart, currentOverride, pastWeeks }: Props) {
+export default function SeasonRulesForm({ seasonId, defaultValues, progressivePenalty: initialProgressive, progressiveStep: initialStep, weekStart, currentOverride, pastWeeks }: Props) {
   const router = useRouter();
   const [defaultLoading, setDefaultLoading] = useState(false);
   const [defaultMessage, setDefaultMessage] = useState("");
   const [applyToPast, setApplyToPast] = useState(false);
   const [progressive, setProgressive] = useState(initialProgressive);
+  const [stepValue, setStepValue] = useState(initialStep);
   const [loading, setLoading] = useState(false);
   const [editingWeek, setEditingWeek] = useState<string | null>(null);
   const [weekMessage, setWeekMessage] = useState("");
@@ -52,6 +54,7 @@ export default function SeasonRulesForm({ seasonId, defaultValues, progressivePe
       default_penalty_per_miss: Number(form.get("default_penalty_per_miss")),
       default_reward_per_extra: Number(form.get("default_reward_per_extra")) || 0,
       progressive_penalty: progressive,
+      progressive_step: progressive ? stepValue : undefined,
     };
 
     const res = await fetch("/api/season", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -107,13 +110,28 @@ export default function SeasonRulesForm({ seasonId, defaultValues, progressivePe
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${progressive ? "translate-x-5" : ""}`} />
               </button>
-              <div>
-                <span className="text-xs text-gray-600 dark:text-gray-400">누적 벌금 체계</span>
-                {progressive && (
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500">미달 1회=1배, 2회=3배, 3회=6배 (삼각수)</p>
-                )}
-              </div>
+              <span className="text-xs text-gray-600 dark:text-gray-400">누적 벌금 체계</span>
             </label>
+
+            {progressive && (
+              <div className="ml-12 flex items-center gap-2">
+                <label className="text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">회당 증가 폭</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={stepValue}
+                    onChange={(e) => setStepValue(Number(e.target.value))}
+                    className="input-base w-24 text-xs py-1.5"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">원</span>
+                </div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                  miss 3 = {defaultValues.default_penalty_per_miss.toLocaleString()}+{(defaultValues.default_penalty_per_miss + stepValue).toLocaleString()}+{(defaultValues.default_penalty_per_miss + stepValue * 2).toLocaleString()}={((3 * defaultValues.default_penalty_per_miss + stepValue * 3)).toLocaleString()}원
+                </p>
+              </div>
+            )}
 
             <label className="flex items-center gap-2 cursor-pointer">
               <button

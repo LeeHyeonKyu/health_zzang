@@ -79,6 +79,7 @@ export default async function SettingsPage() {
             default_reward_per_extra: activeSeason.default_reward_per_extra,
           }}
           progressivePenalty={activeSeason.progressive_penalty ?? false}
+          progressiveStep={activeSeason.progressive_step ?? 1000}
           weekStart={weekStart}
           currentOverride={currentOverride ? {
             target_count: currentOverride.target_count,

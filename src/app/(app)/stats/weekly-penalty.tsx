@@ -16,6 +16,7 @@ interface Props {
   defaultPenaltyPerMiss: number;
   defaultRewardPerExtra: number;
   progressivePenalty: boolean;
+  progressiveStep: number;
   members: Member[];
   workouts: Workout[];
   weeklyRules: WeeklyRule[];
@@ -24,7 +25,7 @@ interface Props {
 
 export default function WeeklyPenalty({
   currentUserId, seasonStartDate, seasonEndDate,
-  defaultTargetCount, defaultPenaltyPerMiss, defaultRewardPerExtra, progressivePenalty,
+  defaultTargetCount, defaultPenaltyPerMiss, defaultRewardPerExtra, progressivePenalty, progressiveStep,
   members, workouts, weeklyRules, exemptions,
 }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -69,8 +70,8 @@ export default function WeeklyPenalty({
       const count = dates.size;
       const missed = Math.max(0, rule.target - count);
       const extra = Math.max(0, count - rule.target);
-      const missPenalty = progressivePenalty
-        ? rule.penaltyPerMiss * missed * (missed + 1) / 2
+      const missPenalty = progressivePenalty && missed > 0
+        ? missed * rule.penaltyPerMiss + progressiveStep * missed * (missed - 1) / 2
         : missed * rule.penaltyPerMiss;
       const penalty = (isCurrentWeek || exempt) ? 0 : missPenalty - extra * rule.rewardPerExtra;
       return { ...m, count, missed, penalty, exempt, exemptReason: reason };
