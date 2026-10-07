@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
 import { formatCurrency, toDateStr } from "@/lib/utils";
 import { calcMemberPenalties } from "@/lib/penalty";
+import Ranking from "./ranking";
 
 export default async function StatsPage() {
   const user = await getUser();
@@ -70,8 +71,6 @@ export default async function StatsPage() {
   });
 
   const myStats = memberStats.find((m) => m.id === user.id);
-  const ranking = [...memberStats].sort((a, b) => b.count - a.count);
-
   const myDates = allWorkouts
     .filter((w) => w.user_id === user.id)
     .map((w) => w.date)
@@ -141,28 +140,7 @@ export default async function StatsPage() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">크루 랭킹</h3>
-        <div className="space-y-2">
-          {ranking.map((m, i) => (
-            <div key={m.id} className={`flex items-center gap-3 py-2 px-3 rounded-lg ${m.id === user.id ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}>
-              <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
-                i === 0 ? "bg-yellow-400 text-white" : i === 1 ? "bg-gray-300 text-white" : i === 2 ? "bg-amber-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-              }`}>
-                {i + 1}
-              </span>
-              <span className="flex-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-                {m.nickname}
-                {m.id === user.id && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(나)</span>}
-              </span>
-              <span className="text-sm font-mono font-semibold text-gray-700 dark:text-gray-300">{m.count}회</span>
-              <span className={`text-xs font-mono ${m.totalPenalty > 0 ? "text-red-500 dark:text-red-400" : m.totalPenalty < 0 ? "text-green-500 dark:text-green-400" : "text-gray-400 dark:text-gray-500"}`}>
-                {formatCurrency(m.totalPenalty)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Ranking members={memberStats} currentUserId={user.id} />
     </div>
   );
 }
