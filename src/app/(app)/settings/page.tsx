@@ -102,8 +102,27 @@ export default async function SettingsPage() {
     </div>
   );
 
+  const loginId = user.email?.replace("@health.zzang", "") ?? "";
+
   const accountTab = (
     <div className="space-y-6">
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
+        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">내 정보</h3>
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-800">
+            <span className="text-gray-500 dark:text-gray-400">ID</span>
+            <span className="font-mono font-medium text-gray-900 dark:text-gray-100">{loginId}</span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-800">
+            <span className="text-gray-500 dark:text-gray-400">이름</span>
+            <span className="font-medium text-gray-900 dark:text-gray-100">{profile?.nickname}</span>
+          </div>
+          <div className="flex justify-between py-2">
+            <span className="text-gray-500 dark:text-gray-400">User ID</span>
+            <span className="font-mono text-xs text-gray-400 dark:text-gray-500 break-all">{user.id}</span>
+          </div>
+        </div>
+      </div>
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
         <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">비밀번호 변경</h3>
         <ChangePasswordForm />
