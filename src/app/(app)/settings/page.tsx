@@ -123,10 +123,7 @@ export default async function SettingsPage() {
         <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">비밀번호 변경</h3>
         <ChangePasswordForm />
       </div>
-      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-5">
-        <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-4">로그아웃</h3>
-        <LogoutButton />
-      </div>
+      <LogoutButton />
     </div>
   );
 

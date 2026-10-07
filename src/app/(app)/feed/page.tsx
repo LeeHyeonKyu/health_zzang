@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
 import { getCrewFeedWithMedia } from "@/lib/workouts";
+import { getReadUrl } from "@/lib/r2";
 import FeedContent from "./feed-content";
 import Link from "next/link";
 
@@ -27,7 +28,18 @@ export default async function FeedPage() {
   }
 
   const supabase = await createClient();
-  const feedItems = await getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id, 100);
+
+  const [feedItems, { data: avatarProfiles }] = await Promise.all([
+    getCrewFeedWithMedia(supabase, profile.crew_id, activeSeason.id, 100),
+    supabase.from("profiles").select("id, avatar_r2_key").eq("crew_id", profile.crew_id).not("avatar_r2_key", "is", null),
+  ]);
+
+  const avatarMap: Record<string, string> = {};
+  for (const p of avatarProfiles ?? []) {
+    if (p.avatar_r2_key) {
+      avatarMap[p.id] = await getReadUrl(p.avatar_r2_key);
+    }
+  }
 
   return (
     <FeedContent
@@ -35,6 +47,7 @@ export default async function FeedPage() {
       members={members.map((m) => ({ id: m.id, nickname: m.nickname }))}
       feedItems={feedItems}
       seasonStartDate={activeSeason.start_date}
+      avatarMap={avatarMap}
     />
   );
 }

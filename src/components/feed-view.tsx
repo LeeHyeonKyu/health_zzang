@@ -8,9 +8,10 @@ interface Props {
   items: FeedItem[];
   seasonStartDate: string;
   onCardClick: (item: FeedItem) => void;
+  avatarMap?: Record<string, string>;
 }
 
-export default function FeedView({ items, seasonStartDate, onCardClick }: Props) {
+export default function FeedView({ items, seasonStartDate, onCardClick, avatarMap }: Props) {
   if (items.length === 0) {
     return (
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-8 text-center shadow-sm border border-gray-100 dark:border-gray-800">
@@ -46,7 +47,7 @@ export default function FeedView({ items, seasonStartDate, onCardClick }: Props)
               note={item.note}
               media={item.media}
               taggedNames={item.taggedNames}
-              onMemberClick={() => {}}
+              avatarUrl={avatarMap?.[item.userId]}
               onCardClick={() => onCardClick(item)}
             />
           </div>

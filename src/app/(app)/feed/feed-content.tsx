@@ -17,17 +17,13 @@ interface Props {
   members: Member[];
   feedItems: FeedItem[];
   seasonStartDate: string;
+  avatarMap?: Record<string, string>;
 }
 
-export default function FeedContent({ currentUserId, members, feedItems, seasonStartDate }: Props) {
+export default function FeedContent({ currentUserId, members, feedItems, seasonStartDate, avatarMap }: Props) {
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
   const router = useRouter();
-
-  const filteredFeed = useMemo(() => {
-    if (selectedMember) return feedItems.filter((f) => f.userId === selectedMember || (f.taggedNames && feedItems.some(fi => fi.id === f.id)));
-    return feedItems;
-  }, [feedItems, selectedMember]);
 
   const filtered = useMemo(() => {
     if (!selectedMember) return feedItems;
@@ -52,11 +48,13 @@ export default function FeedContent({ currentUserId, members, feedItems, seasonS
         currentUserId={currentUserId}
         selected={selectedMember}
         onSelect={setSelectedMember}
+        avatarMap={avatarMap}
       />
       <FeedView
         items={filtered}
         seasonStartDate={seasonStartDate}
         onCardClick={setDetailItem}
+        avatarMap={avatarMap}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { formatDate } from "@/lib/utils";
+import Avatar from "@/components/avatar";
 
 interface MediaItem {
   r2_key: string;
@@ -16,11 +17,12 @@ interface Props {
   note: string | null;
   media: MediaItem[];
   taggedNames?: string[];
+  avatarUrl?: string;
   onMemberClick?: () => void;
   onCardClick?: () => void;
 }
 
-export default function FeedCard({ nickname, date, note, media, taggedNames, onMemberClick, onCardClick }: Props) {
+export default function FeedCard({ nickname, date, note, media, taggedNames, avatarUrl, onMemberClick, onCardClick }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -89,15 +91,18 @@ export default function FeedCard({ nickname, date, note, media, taggedNames, onM
       </div>}
 
       <div className={`p-4 ${onCardClick ? "cursor-pointer" : ""}`} onClick={onCardClick}>
-        <div className="flex items-center justify-between mb-1">
-          {onMemberClick ? (
-            <button onClick={(e) => { e.stopPropagation(); onMemberClick(); }} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
-              {nickname}
-            </button>
-          ) : (
-            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{nickname}</span>
-          )}
-          <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(date)}</span>
+        <div className="flex items-center gap-2 mb-1">
+          <Avatar nickname={nickname} avatarUrl={avatarUrl} size="sm" />
+          <div className="flex-1 flex items-center justify-between">
+            {onMemberClick ? (
+              <button onClick={(e) => { e.stopPropagation(); onMemberClick(); }} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
+                {nickname}
+              </button>
+            ) : (
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{nickname}</span>
+            )}
+            <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(date)}</span>
+          </div>
         </div>
         {taggedNames && taggedNames.length > 0 && (
           <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">with {taggedNames.join(", ")}</p>

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import LogoutButton from "@/components/logout-button";
 import ThemeToggle from "@/components/theme-toggle";
 import PerfReporter from "@/components/perf-reporter";
 import { getUser, getProfile } from "@/lib/data";
+import { getReadUrl } from "@/lib/r2";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getUser();
@@ -11,6 +11,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const profile = await getProfile(user.id);
   const displayName = profile?.nickname ?? user.email;
+  const avatarUrl = profile?.avatar_r2_key ? await getReadUrl(profile.avatar_r2_key) : null;
+  const initial = (displayName ?? "?").charAt(0);
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -18,10 +20,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-screen-sm md:max-w-screen-md mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/records" prefetch={false} className="text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">💪 Health Zzang</Link>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{displayName}</span>
+          <div className="flex items-center gap-2">
             <ThemeToggle />
-            <LogoutButton />
+            <Link href="/settings" prefetch={false} className="flex items-center gap-1.5">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName ?? ""} className="w-7 h-7 rounded-full object-cover" />
+              ) : (
+                <span className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-bold">{initial}</span>
+              )}
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 hidden sm:inline">{displayName}</span>
+            </Link>
           </div>
         </div>
       </header>
