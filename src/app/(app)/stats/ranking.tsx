@@ -11,7 +11,7 @@ interface Member {
 }
 
 export default function Ranking({ members, currentUserId }: { members: Member[]; currentUserId: string }) {
-  const [sortBy, setSortBy] = useState<"count" | "penalty">("count");
+  const [sortBy, setSortBy] = useState<"count" | "penalty">("penalty");
 
   const sorted = [...members].sort((a, b) => {
     if (sortBy === "count") return b.count - a.count;
@@ -49,8 +49,8 @@ export default function Ranking({ members, currentUserId }: { members: Member[];
         <div className="flex items-center gap-3 py-1.5 px-3 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
           <span className="w-6" />
           <span className="flex-1">크루원</span>
-          <span className="w-14 text-right">운동</span>
           <span className="w-20 text-right">벌금</span>
+          <span className="w-14 text-right">운동</span>
         </div>
         {sorted.map((m, i) => (
           <div key={m.id} className={`flex items-center gap-3 py-2.5 px-3 rounded-lg ${m.id === currentUserId ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}>
@@ -63,12 +63,12 @@ export default function Ranking({ members, currentUserId }: { members: Member[];
               {m.nickname}
               {m.id === currentUserId && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(나)</span>}
             </span>
-            <span className="w-14 text-right text-sm font-mono font-semibold text-gray-700 dark:text-gray-300">{m.count}회</span>
-            <span className={`w-20 text-right text-xs font-mono font-semibold ${
+            <span className={`w-20 text-right text-sm font-mono font-semibold ${
               m.totalPenalty > 0 ? "text-red-500 dark:text-red-400" : m.totalPenalty < 0 ? "text-green-500 dark:text-green-400" : "text-gray-400 dark:text-gray-500"
             }`}>
               {formatCurrency(m.totalPenalty)}
             </span>
+            <span className="w-14 text-right text-xs font-mono text-gray-500 dark:text-gray-400">{m.count}회</span>
           </div>
         ))}
       </div>
