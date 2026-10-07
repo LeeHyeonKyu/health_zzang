@@ -103,6 +103,22 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === "update_defaults_with_migration") {
+    const { default_target_count, default_penalty_per_miss, default_reward_per_extra } = body;
+
+    // 이전 주 override를 모두 삭제 → 새 default가 소급 적용
+    await supabase.from("weekly_rule").delete().eq("season_id", season_id);
+
+    const { error } = await supabase.from("season").update({
+      default_target_count,
+      default_penalty_per_miss,
+      default_reward_per_extra: default_reward_per_extra ?? 0,
+    }).eq("id", season_id);
+
+    if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED", message: error.message } }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: { code: "UNKNOWN_ACTION", message: "알 수 없는 작업입니다" } }, { status: 400 });
 }
 

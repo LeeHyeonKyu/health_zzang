@@ -32,8 +32,8 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
   const router = useRouter();
   const [defaultLoading, setDefaultLoading] = useState(false);
   const [defaultMessage, setDefaultMessage] = useState("");
+  const [applyToPast, setApplyToPast] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
   const [editingWeek, setEditingWeek] = useState<string | null>(null);
   const [weekMessage, setWeekMessage] = useState("");
 
@@ -45,22 +45,25 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
     const form = new FormData(e.currentTarget);
     const body = {
       season_id: seasonId,
-      action: "update_defaults",
+      action: applyToPast ? "update_defaults_with_migration" : "update_defaults",
       default_target_count: Number(form.get("default_target_count")),
       default_penalty_per_miss: Number(form.get("default_penalty_per_miss")),
       default_reward_per_extra: Number(form.get("default_reward_per_extra")) || 0,
     };
 
     const res = await fetch("/api/season", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    setDefaultMessage(res.ok ? "기본 규칙이 변경되었습니다. (지난 주 기록은 보존됩니다)" : "변경에 실패했습니다.");
+    if (res.ok) {
+      setDefaultMessage(applyToPast ? "기본 규칙이 변경되고 이전 주에도 적용되었습니다." : "기본 규칙이 변경되었습니다. (이전 주 기록은 보존)");
+      router.refresh();
+    } else {
+      setDefaultMessage("변경에 실패했습니다.");
+    }
     setDefaultLoading(false);
-    if (res.ok) router.refresh();
   }
 
-  async function handleOverrideSubmit(e: React.FormEvent<HTMLFormElement>, targetWeek: string) {
+  async function handleWeekSubmit(e: React.FormEvent<HTMLFormElement>, targetWeek: string) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
     setWeekMessage("");
 
     const form = new FormData(e.currentTarget);
@@ -73,12 +76,7 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
     };
 
     const res = await fetch("/api/weekly-rule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const isCurrentWeek = targetWeek === weekStart;
-    if (isCurrentWeek) {
-      setMessage(res.ok ? "이번 주 규칙이 변경되었습니다." : "변경에 실패했습니다.");
-    } else {
-      setWeekMessage(res.ok ? "규칙이 변경되었습니다." : "변경에 실패했습니다.");
-    }
+    setWeekMessage(res.ok ? "규칙이 변경되었습니다." : "변경에 실패했습니다.");
     setLoading(false);
     if (res.ok) {
       setEditingWeek(null);
@@ -90,12 +88,24 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
     <div className="space-y-6">
       <div>
         <h3 className="text-sm font-bold text-gray-900 mb-1">시즌 기본 규칙</h3>
-        <p className="text-xs text-gray-500 mb-3">앞으로 적용될 기본 규칙입니다. 변경해도 지난 주 기록은 보존됩니다.</p>
+        <p className="text-xs text-gray-500 mb-3">변경한 주부터 적용됩니다.</p>
         <form onSubmit={handleDefaultSubmit} className="space-y-3">
           <RuleInputs
             prefix="default_"
             defaults={{ target_count: defaultValues.default_target_count, penalty_per_miss: defaultValues.default_penalty_per_miss, reward_per_extra: defaultValues.default_reward_per_extra }}
           />
+
+          <label className="flex items-center gap-2 cursor-pointer py-1">
+            <button
+              type="button"
+              onClick={() => setApplyToPast(!applyToPast)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${applyToPast ? "bg-blue-600" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${applyToPast ? "translate-x-5" : ""}`} />
+            </button>
+            <span className="text-xs text-gray-600">이전 주에도 소급 적용</span>
+          </label>
+
           {defaultMessage && <p className={`text-sm ${defaultMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>{defaultMessage}</p>}
           <button type="submit" disabled={defaultLoading} className="w-full py-2.5 rounded-lg bg-gray-800 text-white text-sm font-semibold hover:bg-gray-900 disabled:opacity-50 transition-colors">
             {defaultLoading ? "저장 중..." : "기본 규칙 저장"}
@@ -103,33 +113,14 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
         </form>
       </div>
 
-      <div className="border-t border-gray-100 pt-4">
-        <h3 className="text-sm font-bold text-gray-900 mb-1">이번 주 규칙</h3>
-        <p className="text-xs text-gray-500 mb-3">
-          {currentOverride
-            ? `별도 규칙 적용 중 (주 ${currentOverride.target_count}회)`
-            : "시즌 기본 규칙 적용 중"}
-        </p>
-        <form onSubmit={(e) => handleOverrideSubmit(e, weekStart)} className="space-y-3">
-          <RuleInputs
-            prefix=""
-            defaults={{ target_count: currentOverride?.target_count ?? defaultValues.default_target_count, penalty_per_miss: currentOverride?.penalty_per_miss ?? defaultValues.default_penalty_per_miss, reward_per_extra: currentOverride?.reward_per_extra ?? defaultValues.default_reward_per_extra }}
-          />
-          {message && <p className={`text-sm ${message.includes("실패") ? "text-red-500" : "text-green-600"}`}>{message}</p>}
-          <button type="submit" disabled={loading} className="w-full py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors">
-            {loading ? "변경 중..." : "이번 주 규칙 변경"}
-          </button>
-        </form>
-      </div>
-
       {pastWeeks.length > 0 && (
         <div className="border-t border-gray-100 pt-4">
-          <h3 className="text-sm font-bold text-gray-900 mb-3">지난 주별 규칙</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">주별 규칙</h3>
           <div className="space-y-2">
             {pastWeeks.map((week) => (
               <div key={week.weekStart} className="border border-gray-100 rounded-lg p-3">
                 {editingWeek === week.weekStart ? (
-                  <form onSubmit={(e) => handleOverrideSubmit(e, week.weekStart)} className="space-y-3">
+                  <form onSubmit={(e) => handleWeekSubmit(e, week.weekStart)} className="space-y-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-gray-900">{week.weekLabel}</span>
                       <button type="button" onClick={() => setEditingWeek(null)} className="text-xs text-gray-400 hover:text-gray-600">취소</button>
