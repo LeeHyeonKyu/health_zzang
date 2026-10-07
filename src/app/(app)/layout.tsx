@@ -1,19 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "@/components/logout-button";
+import { getUser, getProfile } from "@/lib/data";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("nickname")
-    .eq("id", user.id)
-    .single();
-
+  const profile = await getProfile(user.id);
   const displayName = profile?.nickname ?? user.email;
 
   return (

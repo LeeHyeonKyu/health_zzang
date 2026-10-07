@@ -1,19 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getWeekStart } from "@/lib/utils";
+import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
 import PenaltyContent from "./penalty-content";
 
 export default async function PenaltyPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
+  const profile = await getProfile(user.id);
   if (!profile) redirect("/login");
 
-  const [{ data: activeSeason }, { data: members }] = await Promise.all([
-    supabase.from("season").select("*").eq("crew_id", profile.crew_id).eq("is_active", true).single(),
-    supabase.from("profiles").select("id, nickname").eq("crew_id", profile.crew_id),
+  const [activeSeason, members] = await Promise.all([
+    getActiveSeason(profile.crew_id),
+    getCrewMembers(profile.crew_id),
   ]);
 
   if (!activeSeason) {
@@ -24,6 +23,7 @@ export default async function PenaltyPage() {
     );
   }
 
+  const supabase = await createClient();
   const [{ data: workouts }, { data: weeklyRules }] = await Promise.all([
     supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
@@ -38,7 +38,7 @@ export default async function PenaltyPage() {
       defaultTargetCount={activeSeason.default_target_count}
       defaultPenaltyPerMiss={activeSeason.default_penalty_per_miss}
       defaultRewardPerExtra={activeSeason.default_reward_per_extra}
-      members={(members ?? []).map((m) => ({ id: m.id, nickname: m.nickname }))}
+      members={members.map((m) => ({ id: m.id, nickname: m.nickname }))}
       workouts={(workouts ?? []).map((w) => ({ user_id: w.user_id, date: w.date }))}
       weeklyRules={(weeklyRules ?? []).map((r) => ({
         week_start: r.week_start,

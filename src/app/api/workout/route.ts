@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
 
   const { error: mediaError } = await supabase.from("media").insert(mediaInserts);
   if (mediaError) return NextResponse.json({ error: { code: "MEDIA_FAILED", message: mediaError.message } }, { status: 500 });
+
+  revalidatePath("/records");
+  revalidatePath("/penalty");
+  revalidatePath("/stats");
 
   return NextResponse.json(workout, { status: 201 });
 }

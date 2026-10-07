@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getUser, getProfile, getActiveSeason } from "@/lib/data";
 import CreateSeasonForm from "./create-season-form";
 import EndSeasonButton from "./end-season-button";
 import SeasonRulesForm from "./season-rules-form";
@@ -8,25 +9,20 @@ import LogoutButton from "@/components/logout-button";
 import { getWeekStart, formatDate } from "@/lib/utils";
 
 export default async function SettingsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
+  const profile = await getProfile(user.id);
   if (!profile) return null;
 
-  const { data: activeSeason } = await supabase
-    .from("season")
-    .select("*")
-    .eq("crew_id", profile.crew_id)
-    .eq("is_active", true)
-    .single();
+  const activeSeason = await getActiveSeason(profile.crew_id);
 
   const weekStart = getWeekStart();
   let currentOverride = null;
   const pastWeeks: { weekStart: string; weekLabel: string; target_count: number; penalty_per_miss: number; reward_per_extra: number; isOverride: boolean }[] = [];
 
   if (activeSeason) {
+    const supabase = await createClient();
     const [{ data: override }, { data: allOverrides }] = await Promise.all([
       supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id).eq("week_start", weekStart).single(),
       supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id).order("week_start", { ascending: false }),

@@ -1,19 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function StatsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("crew_id").eq("id", user.id).single();
+  const profile = await getProfile(user.id);
   if (!profile) redirect("/login");
 
-  const [{ data: activeSeason }, { data: members }] = await Promise.all([
-    supabase.from("season").select("*").eq("crew_id", profile.crew_id).eq("is_active", true).single(),
-    supabase.from("profiles").select("id, nickname").eq("crew_id", profile.crew_id),
+  const [activeSeason, members] = await Promise.all([
+    getActiveSeason(profile.crew_id),
+    getCrewMembers(profile.crew_id),
   ]);
 
   if (!activeSeason) {
@@ -25,6 +25,7 @@ export default async function StatsPage() {
     );
   }
 
+  const supabase = await createClient();
   const [{ data: workouts }, { data: weeklyRules }] = await Promise.all([
     supabase.from("workout").select("user_id, date").eq("season_id", activeSeason.id),
     supabase.from("weekly_rule").select("*").eq("season_id", activeSeason.id),
@@ -61,7 +62,6 @@ export default async function StatsPage() {
     };
   }
 
-  // Build all weeks
   const allWeeks: string[] = [];
   const today = new Date(now);
   const endDate = activeSeason.end_date ?? today.toISOString().split("T")[0];
@@ -72,8 +72,7 @@ export default async function StatsPage() {
     d.setDate(d.getDate() + 7);
   }
 
-  // Calculate per-member stats
-  const memberStats = (members ?? []).map((m) => {
+  const memberStats = members.map((m) => {
     const count = allWorkouts.filter((w) => w.user_id === m.id).length;
     let totalPenalty = 0;
     for (const ws of allWeeks) {
@@ -90,7 +89,6 @@ export default async function StatsPage() {
   const myStats = memberStats.find((m) => m.id === user.id);
   const ranking = [...memberStats].sort((a, b) => b.count - a.count);
 
-  // Streak calculation for current user
   const myDates = allWorkouts
     .filter((w) => w.user_id === user.id)
     .map((w) => w.date)
@@ -101,7 +99,6 @@ export default async function StatsPage() {
   if (myDates.length > 0) {
     const checkDate = new Date(now);
     checkDate.setHours(0, 0, 0, 0);
-
     for (let i = 0; i < 365; i++) {
       const ds = checkDate.toISOString().split("T")[0];
       if (myDates.includes(ds)) {
@@ -129,7 +126,7 @@ export default async function StatsPage() {
             <p className="text-xs text-blue-600">경과주</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-blue-900">{(members ?? []).length}</p>
+            <p className="text-2xl font-bold text-blue-900">{members.length}</p>
             <p className="text-xs text-blue-600">참여 인원</p>
           </div>
         </div>
