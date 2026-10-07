@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
+import WorkoutDetail from "@/components/workout-detail";
 import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, toDateStr, todayStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
@@ -53,6 +54,7 @@ export default function RecordsContent({
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
 
   const currentWeekStart = useMemo(() => {
     const base = getWeekStartDate();
@@ -107,6 +109,17 @@ export default function RecordsContent({
     );
   }
 
+  if (detailItem) {
+    return (
+      <WorkoutDetail
+        item={detailItem}
+        isOwner={detailItem.userId === currentUserId}
+        members={members}
+        onBack={() => setDetailItem(null)}
+      />
+    );
+  }
+
   if (selectedMember && selectedMemberInfo) {
     return (
       <div>
@@ -135,6 +148,7 @@ export default function RecordsContent({
                 note={item.note}
                 media={item.media}
                 onMemberClick={() => {}}
+                onCardClick={() => setDetailItem(item)}
               />
             ))
           )}
@@ -194,6 +208,7 @@ export default function RecordsContent({
           feedItems={filteredFeed}
           selectedDate={selectedCalDate}
           onDateSelect={setSelectedCalDate}
+          onCardClick={setDetailItem}
         />
       )}
 
@@ -201,6 +216,7 @@ export default function RecordsContent({
         <FeedView
           items={filteredFeed}
           onMemberClick={setSelectedMember}
+          onCardClick={setDetailItem}
         />
       )}
     </div>
@@ -305,11 +321,13 @@ function MonthlyView({
   feedItems,
   selectedDate,
   onDateSelect,
+  onCardClick,
 }: {
   workouts: Workout[];
   feedItems: FeedItem[];
   selectedDate: string | null;
   onDateSelect: (date: string | null) => void;
+  onCardClick: (item: FeedItem) => void;
 }) {
   const workoutDates = [...new Set(workouts.map((w) => w.date))];
   const selectedItems = selectedDate
@@ -339,6 +357,7 @@ function MonthlyView({
                   note={item.note}
                   media={item.media}
                   onMemberClick={() => {}}
+                  onCardClick={() => onCardClick(item)}
                 />
               ))}
             </div>
@@ -352,9 +371,11 @@ function MonthlyView({
 function FeedView({
   items,
   onMemberClick,
+  onCardClick,
 }: {
   items: FeedItem[];
   onMemberClick: (id: string) => void;
+  onCardClick: (item: FeedItem) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -375,6 +396,7 @@ function FeedView({
           note={item.note}
           media={item.media}
           onMemberClick={() => onMemberClick(item.userId)}
+          onCardClick={() => onCardClick(item)}
         />
       ))}
     </div>

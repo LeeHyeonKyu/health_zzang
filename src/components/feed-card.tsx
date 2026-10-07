@@ -16,9 +16,10 @@ interface Props {
   note: string | null;
   media: MediaItem[];
   onMemberClick?: () => void;
+  onCardClick?: () => void;
 }
 
-export default function FeedCard({ nickname, date, note, media, onMemberClick }: Props) {
+export default function FeedCard({ nickname, date, note, media, onMemberClick, onCardClick }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -88,10 +89,10 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick }:
         )}
       </div>
 
-      <div className="p-4">
+      <div className={`p-4 ${onCardClick ? "cursor-pointer" : ""}`} onClick={onCardClick}>
         <div className="flex items-center justify-between mb-1">
           {onMemberClick ? (
-            <button onClick={onMemberClick} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
+            <button onClick={(e) => { e.stopPropagation(); onMemberClick(); }} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
               {nickname}
             </button>
           ) : (
@@ -100,6 +101,7 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick }:
           <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(date)}</span>
         </div>
         {note && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{note}</p>}
+        {onCardClick && <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2">탭하여 상세 보기</p>}
       </div>
     </div>
   );
