@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { formatCurrency, formatWeekLabel, formatDateShort } from "@/lib/utils";
+import { calcMemberPenalties } from "@/lib/penalty";
 
 type PenaltyView = "cumulative" | "weekly";
 
@@ -93,8 +94,6 @@ export default function PenaltyContent({
     return weeks;
   }, [seasonStartDate, seasonEndDate]);
 
-  const completedWeeks = useMemo(() => allWeeks.filter((w) => w < currentWeekStart), [allWeeks, currentWeekStart]);
-
   const currentWeekIdx = useMemo(() => {
     const idx = allWeeks.findIndex((w) => w === currentWeekStart);
     return idx >= 0 ? idx : allWeeks.length - 1;
@@ -113,21 +112,18 @@ export default function PenaltyContent({
   }
 
   const cumulativeData = useMemo(() => {
-    return members.map((m) => {
-      let totalPenalty = 0;
-      let totalWorkouts = 0;
-      let exemptedWeeks = 0;
-      for (const ws of completedWeeks) {
-        if (isExempted(m.id, ws)) { exemptedWeeks++; continue; }
-        const we = getWeekEnd(ws);
-        const rule = getRuleForWeek(ws);
-        const count = workouts.filter((w) => w.user_id === m.id && w.date >= ws && w.date <= we).length;
-        totalWorkouts += count;
-        totalPenalty += calcPenalty(count, rule);
-      }
-      return { ...m, totalWorkouts, totalPenalty, exemptedWeeks };
+    return calcMemberPenalties({
+      seasonStartDate,
+      seasonEndDate,
+      defaultTargetCount,
+      defaultPenaltyPerMiss,
+      defaultRewardPerExtra,
+      members,
+      workouts,
+      weeklyRules,
+      exemptions: exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start })),
     }).sort((a, b) => b.totalPenalty - a.totalPenalty);
-  }, [members, completedWeeks, workouts, exemptions]);
+  }, [seasonStartDate, seasonEndDate, defaultTargetCount, defaultPenaltyPerMiss, defaultRewardPerExtra, members, workouts, weeklyRules, exemptions]);
 
   const weeklyData = useMemo(() => {
     if (!selectedWeek) return [];

@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
-import { formatCurrency, getWeekStart } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
+import { calcMemberPenalties } from "@/lib/penalty";
 
 export default async function StatsPage() {
   const user = await getUser();
@@ -32,10 +33,7 @@ export default async function StatsPage() {
     getExemptions(activeSeason.id),
   ]);
 
-  const exemptionSet = new Set(exemptions.map((e) => `${e.user_id}:${e.week_start}`));
-
   const allWorkouts = workouts ?? [];
-  const ruleMap = new Map((weeklyRules ?? []).map((r) => [r.week_start, r]));
 
   /* eslint-disable react-hooks/purity */
   const now = Date.now();
@@ -43,54 +41,32 @@ export default async function StatsPage() {
   const daysElapsed = Math.max(1, Math.ceil((now - new Date(activeSeason.start_date + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24)));
   const weeksElapsed = Math.max(1, Math.ceil(daysElapsed / 7));
 
-  function getMonday(date: Date): string {
-    const d = new Date(date);
-    const day = d.getDay();
-    d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
-    return d.toISOString().split("T")[0];
-  }
+  const penaltyResults = calcMemberPenalties({
+    seasonStartDate: activeSeason.start_date,
+    seasonEndDate: activeSeason.end_date,
+    defaultTargetCount: activeSeason.default_target_count,
+    defaultPenaltyPerMiss: activeSeason.default_penalty_per_miss,
+    defaultRewardPerExtra: activeSeason.default_reward_per_extra,
+    members: members.map((m) => ({ id: m.id, nickname: m.nickname })),
+    workouts: allWorkouts.map((w) => ({ user_id: w.user_id, date: w.date })),
+    weeklyRules: (weeklyRules ?? []).map((r) => ({
+      week_start: r.week_start,
+      target_count: r.target_count,
+      penalty_per_miss: r.penalty_per_miss,
+      reward_per_extra: r.reward_per_extra,
+    })),
+    exemptions: exemptions.map((e) => ({ user_id: e.user_id, week_start: e.week_start })),
+  });
 
-  function getWeekEnd(ws: string): string {
-    const d = new Date(ws + "T00:00:00");
-    d.setDate(d.getDate() + 6);
-    return d.toISOString().split("T")[0];
-  }
-
-  function getRuleForWeek(ws: string) {
-    const ov = ruleMap.get(ws);
+  const memberStats = penaltyResults.map((p) => {
+    const count = allWorkouts.filter((w) => w.user_id === p.id).length;
     return {
-      target: ov?.target_count ?? activeSeason.default_target_count,
-      penaltyPerMiss: ov?.penalty_per_miss ?? activeSeason.default_penalty_per_miss,
-      rewardPerExtra: ov?.reward_per_extra ?? activeSeason.default_reward_per_extra,
+      id: p.id,
+      nickname: p.nickname,
+      count,
+      totalPenalty: p.totalPenalty,
+      avgPerWeek: Math.round((count / weeksElapsed) * 10) / 10,
     };
-  }
-
-  const allWeeks: string[] = [];
-  const today = new Date(now);
-  const endDate = activeSeason.end_date ?? today.toISOString().split("T")[0];
-  const startMon = getMonday(new Date(activeSeason.start_date + "T00:00:00"));
-  const d = new Date(startMon + "T00:00:00");
-  while (d.toISOString().split("T")[0] <= endDate) {
-    allWeeks.push(d.toISOString().split("T")[0]);
-    d.setDate(d.getDate() + 7);
-  }
-
-  const currentWeekStart = getWeekStart();
-  const completedWeeks = allWeeks.filter((w) => w < currentWeekStart);
-
-  const memberStats = members.map((m) => {
-    const count = allWorkouts.filter((w) => w.user_id === m.id).length;
-    let totalPenalty = 0;
-    for (const ws of completedWeeks) {
-      if (exemptionSet.has(`${m.id}:${ws}`)) continue;
-      const we = getWeekEnd(ws);
-      const rule = getRuleForWeek(ws);
-      const weekCount = allWorkouts.filter((w) => w.user_id === m.id && w.date >= ws && w.date <= we).length;
-      const missed = Math.max(0, rule.target - weekCount);
-      const extra = Math.max(0, weekCount - rule.target);
-      totalPenalty += missed * rule.penaltyPerMiss - extra * rule.rewardPerExtra;
-    }
-    return { id: m.id, nickname: m.nickname, count, totalPenalty, avgPerWeek: Math.round((count / weeksElapsed) * 10) / 10 };
   });
 
   const myStats = memberStats.find((m) => m.id === user.id);
