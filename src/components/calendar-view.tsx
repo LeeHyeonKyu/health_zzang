@@ -5,11 +5,12 @@ import { todayStr } from "@/lib/utils";
 
 interface Props {
   workoutDates: string[];
-  onDateSelect: (date: string) => void;
+  onDateSelect: (date: string | null) => void;
   selectedDate: string | null;
 }
 
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+const DAY_COLORS = ["", "", "", "", "", "text-blue-600 dark:text-blue-400", "text-red-500 dark:text-red-400"];
 
 export default function CalendarView({ workoutDates, onDateSelect, selectedDate }: Props) {
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -43,6 +44,11 @@ export default function CalendarView({ workoutDates, onDateSelect, selectedDate 
     return `${currentMonth.year}-${m}-${d}`;
   }
 
+  function getDayOfWeek(day: number): number {
+    const d = new Date(currentMonth.year, currentMonth.month, day).getDay();
+    return d === 0 ? 6 : d - 1;
+  }
+
   const monthLabel = `${currentMonth.year}년 ${currentMonth.month + 1}월`;
 
   return (
@@ -58,8 +64,8 @@ export default function CalendarView({ workoutDates, onDateSelect, selectedDate 
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {DAY_LABELS.map((label) => (
-          <div key={label} className="text-center text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase py-1">
+        {DAY_LABELS.map((label, i) => (
+          <div key={label} className={`text-center text-[10px] font-semibold uppercase py-1 ${DAY_COLORS[i] || "text-gray-400 dark:text-gray-500"}`}>
             {label}
           </div>
         ))}
@@ -76,13 +82,17 @@ export default function CalendarView({ workoutDates, onDateSelect, selectedDate 
           const hasWorkout = workoutSet.has(dateStr);
           const isSelected = selectedDate === dateStr;
           const isToday = dateStr === todayStr();
+          const dow = getDayOfWeek(day);
+          const dowColor = !isSelected ? DAY_COLORS[dow] : "";
 
           return (
             <button
               key={day}
-              onClick={() => onDateSelect(dateStr)}
+              onClick={() => onDateSelect(isSelected ? null : dateStr)}
               className={`relative flex flex-col items-center justify-center py-2 rounded-lg text-sm transition-colors
-                ${isSelected ? "bg-blue-600 text-white" : isToday ? "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#222]"}
+                ${isSelected ? "bg-blue-600 text-white" : isToday ? "bg-blue-50 dark:bg-blue-950 font-bold ring-1 ring-blue-300 dark:ring-blue-700" : "hover:bg-gray-50 dark:hover:bg-[#222]"}
+                ${!isSelected && !isToday && dowColor ? dowColor : !isSelected && !isToday ? "text-gray-700 dark:text-gray-300" : ""}
+                ${isToday && !isSelected ? (dowColor || "text-blue-700 dark:text-blue-300") : ""}
               `}
             >
               {day}

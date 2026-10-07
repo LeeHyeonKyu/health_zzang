@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
-import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, toDateStr } from "@/lib/utils";
+import { formatDate, formatWeekLabel, formatDateShort, getWeekStartDate, toDateStr, todayStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
 type ViewMode = "weekly" | "monthly" | "feed";
@@ -251,12 +251,17 @@ function WeeklyView({
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
         <div className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
           <div className="py-2 px-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">크루원</div>
-          {DAY_LABELS.map((d, i) => (
-            <div key={d} className="py-2 text-[10px] font-semibold text-gray-400 dark:text-gray-500">
-              <div>{d}</div>
-              <div className="text-[9px] text-gray-300 dark:text-gray-600">{weekDates[i]?.slice(5)}</div>
-            </div>
-          ))}
+          {DAY_LABELS.map((d, i) => {
+            const isToday = weekDates[i] === todayStr();
+            const isSat = i === 5;
+            const isSun = i === 6;
+            return (
+              <div key={d} className={`py-2 text-[10px] font-semibold ${isToday ? "bg-blue-100 dark:bg-blue-900 rounded" : ""} ${isSat ? "text-blue-500 dark:text-blue-400" : isSun ? "text-red-500 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}>
+                <div>{d}</div>
+                <div className={`text-[9px] ${isToday ? "font-bold" : isSat ? "text-blue-400 dark:text-blue-500" : isSun ? "text-red-400 dark:text-red-500" : "text-gray-300 dark:text-gray-600"}`}>{weekDates[i]?.slice(5)}</div>
+              </div>
+            );
+          })}
         </div>
 
         {members.map((member) => {
@@ -304,7 +309,7 @@ function MonthlyView({
   workouts: Workout[];
   feedItems: FeedItem[];
   selectedDate: string | null;
-  onDateSelect: (date: string) => void;
+  onDateSelect: (date: string | null) => void;
 }) {
   const workoutDates = [...new Set(workouts.map((w) => w.date))];
   const selectedItems = selectedDate
