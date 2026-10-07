@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import ThemeToggle from "@/components/theme-toggle";
 
 export default function LoginPage() {
   const [id, setId] = useState("");
@@ -41,16 +42,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-4">
+    <div className="min-h-dvh flex items-center justify-center px-4 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-8">💪 Health Zzang</h1>
+        <h1 className="text-2xl font-bold text-center mb-8 text-gray-900 dark:text-gray-100">💪 Health Zzang</h1>
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <input
             type="text"
             placeholder="ID"
             value={id}
             onChange={(e) => setId(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
             autoComplete="username"
           />
           <input
@@ -58,11 +62,11 @@ export default function LoginPage() {
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
             autoComplete="current-password"
           />
           {error && (
-            <p className="text-red-500 text-sm">{error}</p>
+            <p className="text-red-500 dark:text-red-400 text-sm">{error}</p>
           )}
           <button
             type="submit"
