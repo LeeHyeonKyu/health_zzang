@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { todayStr } from "@/lib/utils";
 
 interface MediaFile {
   file: File;
@@ -14,24 +13,48 @@ interface Props {
   crewMembers: { id: string; nickname: string }[];
 }
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 export default function WorkoutForm({ crewMembers }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [taggedIds, setTaggedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState("");
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newFiles = Array.from(e.target.files ?? []);
-    const mediaFiles = newFiles.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      type: (file.type.startsWith("video") ? "video" : "photo") as "photo" | "video",
-    }));
-    setFiles((prev) => [...prev, ...mediaFiles]);
+    const rejected: string[] = [];
+    const accepted: MediaFile[] = [];
+
+    for (const file of newFiles) {
+      if (file.size > MAX_FILE_SIZE) {
+        rejected.push(`${formatFileSize(file.size)} 파일이 20MB를 초과합니다`);
+        continue;
+      }
+      accepted.push({
+        file,
+        preview: URL.createObjectURL(file),
+        type: (file.type.startsWith("video") ? "video" : "photo") as "photo" | "video",
+      });
+    }
+
+    if (rejected.length > 0) {
+      setError(rejected.join(", "));
+    } else {
+      setError("");
+    }
+
+    setFiles((prev) => [...prev, ...accepted]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -40,6 +63,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
       URL.revokeObjectURL(prev[index].preview);
       return prev.filter((_, i) => i !== index);
     });
+    setError("");
   }
 
   function toggleTag(id: string) {
@@ -55,27 +79,27 @@ export default function WorkoutForm({ crewMembers }: Props) {
       return;
     }
 
-    const maxSize = 10 * 1024 * 1024;
-    const oversized = files.find((f) => f.file.size > maxSize);
-    if (oversized) {
-      setError(`${oversized.file.name}의 크기가 10MB를 초과합니다.`);
-      return;
-    }
-
     setLoading(true);
 
     try {
       const uploadedMedia: { r2_key: string; type: "photo" | "video"; size_bytes: number }[] = [];
 
-      for (const mediaFile of files) {
-        const ext = mediaFile.file.name.split(".").pop() ?? "jpg";
+      for (let i = 0; i < files.length; i++) {
+        const mediaFile = files[i];
+        setUploadProgress(`업로드 중 (${i + 1}/${files.length})...`);
+
+        const ext = mediaFile.file.name.split(".").pop()?.toLowerCase() ?? "jpg";
         const res = await fetch("/api/media", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contentType: mediaFile.file.type, fileExtension: ext }),
         });
 
-        if (!res.ok) throw new Error("업로드 URL 생성 실패");
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error?.message ?? "업로드 URL 생성에 실패했습니다");
+        }
+
         const { uploadUrl, key } = await res.json();
 
         const uploadRes = await fetch(uploadUrl, {
@@ -84,10 +108,14 @@ export default function WorkoutForm({ crewMembers }: Props) {
           headers: { "Content-Type": mediaFile.file.type },
         });
 
-        if (!uploadRes.ok) throw new Error("파일 업로드 실패");
+        if (!uploadRes.ok) {
+          throw new Error(`파일 업로드에 실패했습니다 (${uploadRes.status}). 다시 시도해주세요.`);
+        }
 
         uploadedMedia.push({ r2_key: key, type: mediaFile.type, size_bytes: mediaFile.file.size });
       }
+
+      setUploadProgress("저장 중...");
 
       const res = await fetch("/api/workout", {
         method: "POST",
@@ -101,19 +129,20 @@ export default function WorkoutForm({ crewMembers }: Props) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message ?? "인증 등록 실패");
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? "인증 등록에 실패했습니다");
       }
 
       router.push("/records");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다");
+      setError(err instanceof Error ? err.message : "오류가 발생했습니다. 다시 시도해주세요.");
       setLoading(false);
+      setUploadProgress("");
     }
   }
 
-  const today = todayStr();
+  const today = new Date().toISOString().split("T")[0];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -135,7 +164,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
           className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
         >
           <p className="text-gray-500 dark:text-gray-400 text-sm">탭하여 사진/영상 추가</p>
-          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">영상은 10MB 이내</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">최대 20MB</p>
         </div>
         <input
           ref={fileInputRef}
@@ -156,6 +185,9 @@ export default function WorkoutForm({ crewMembers }: Props) {
               ) : (
                 <video src={f.preview} className="w-full h-full object-cover" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1 py-0.5 text-center">
+                {f.type === "video" ? "🎬 " : ""}{formatFileSize(f.file.size)}
+              </div>
               <button
                 type="button"
                 onClick={() => removeFile(i)}
@@ -213,7 +245,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
         disabled={loading}
         className="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
       >
-        {loading ? "업로드 중..." : "인증 완료"}
+        {loading ? uploadProgress || "처리 중..." : "인증 완료"}
       </button>
     </form>
   );
