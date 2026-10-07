@@ -56,3 +56,27 @@ Run `npx know-thy-build factory status` (or `/know-thy-build:status`) anytime: N
 - QA framework: `docs/QA.md`
 - Harness contract: `.factory/harness.toml`
 - Feature registry: `docs/PROJECT.md` → Feature Registry section
+
+## Performance Rules
+
+모든 개발에서 지켜야 할 성능 규칙:
+
+### 필수
+- 새 페이지는 반드시 `loading.tsx` 포함 (스켈레톤 UI)
+- 한 페이지당 순차 Supabase 호출 최대 2단계 (auth → 나머지 전부 Promise.all)
+- 공통 데이터는 `src/lib/data.ts`의 React.cache() 함수 사용 (getUser, getProfile, getActiveSeason, getCrewMembers)
+- 새 DB 쿼리 추가 시 200ms 초과하면 data.ts에 캐시 함수로 등록
+
+### 성능 예산
+| 페이지 | 서버 응답 예산 |
+|---|---|
+| /records | 800ms |
+| /penalty | 600ms |
+| /stats | 600ms |
+| /settings | 500ms |
+| /workout/new | 400ms |
+
+### 모니터링
+- 클라이언트 Web Vitals → `performance_log` 테이블에 자동 수집 (PerfReporter 컴포넌트)
+- 느린 쿼리(200ms+) → 서버 콘솔에 `[SLOW QUERY]` 경고 (data.ts timed 함수)
+- `/api/health` — DB 연결 + 쿼리 시간 측정

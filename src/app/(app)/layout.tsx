@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "@/components/logout-button";
+import PerfReporter from "@/components/perf-reporter";
 import { getUser, getProfile } from "@/lib/data";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-dvh flex flex-col">
+      <PerfReporter />
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-screen-sm md:max-w-screen-md mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/records" prefetch={false} className="text-lg font-bold tracking-tight text-gray-900">💪 Health Zzang</Link>
