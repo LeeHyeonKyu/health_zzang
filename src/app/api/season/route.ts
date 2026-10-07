@@ -97,11 +97,16 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const { error } = await supabase.from("season").update({
+    const updateData: Record<string, unknown> = {
       default_target_count,
       default_penalty_per_miss,
       default_reward_per_extra: default_reward_per_extra ?? 0,
-    }).eq("id", season_id);
+    };
+    if (body.progressive_penalty !== undefined) {
+      updateData.progressive_penalty = body.progressive_penalty;
+    }
+
+    const { error } = await supabase.from("season").update(updateData).eq("id", season_id);
 
     if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED", message: error.message } }, { status: 500 });
     return NextResponse.json({ success: true });
@@ -113,11 +118,16 @@ export async function PATCH(request: NextRequest) {
     // 이전 주 override를 모두 삭제 → 새 default가 소급 적용
     await supabase.from("weekly_rule").delete().eq("season_id", season_id);
 
-    const { error } = await supabase.from("season").update({
+    const migrationData: Record<string, unknown> = {
       default_target_count,
       default_penalty_per_miss,
       default_reward_per_extra: default_reward_per_extra ?? 0,
-    }).eq("id", season_id);
+    };
+    if (body.progressive_penalty !== undefined) {
+      migrationData.progressive_penalty = body.progressive_penalty;
+    }
+
+    const { error } = await supabase.from("season").update(migrationData).eq("id", season_id);
 
     if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED", message: error.message } }, { status: 500 });
     return NextResponse.json({ success: true });

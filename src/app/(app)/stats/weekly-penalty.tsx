@@ -15,6 +15,7 @@ interface Props {
   defaultTargetCount: number;
   defaultPenaltyPerMiss: number;
   defaultRewardPerExtra: number;
+  progressivePenalty: boolean;
   members: Member[];
   workouts: Workout[];
   weeklyRules: WeeklyRule[];
@@ -23,7 +24,7 @@ interface Props {
 
 export default function WeeklyPenalty({
   currentUserId, seasonStartDate, seasonEndDate,
-  defaultTargetCount, defaultPenaltyPerMiss, defaultRewardPerExtra,
+  defaultTargetCount, defaultPenaltyPerMiss, defaultRewardPerExtra, progressivePenalty,
   members, workouts, weeklyRules, exemptions,
 }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -68,8 +69,11 @@ export default function WeeklyPenalty({
       const count = dates.size;
       const missed = Math.max(0, rule.target - count);
       const extra = Math.max(0, count - rule.target);
-      const penalty = (isCurrentWeek || exempt) ? 0 : missed * rule.penaltyPerMiss - extra * rule.rewardPerExtra;
-      return { ...m, count, penalty, exempt, exemptReason: reason };
+      const missPenalty = progressivePenalty
+        ? rule.penaltyPerMiss * missed * (missed + 1) / 2
+        : missed * rule.penaltyPerMiss;
+      const penalty = (isCurrentWeek || exempt) ? 0 : missPenalty - extra * rule.rewardPerExtra;
+      return { ...m, count, missed, penalty, exempt, exemptReason: reason };
     }).sort((a, b) => {
       if (a.exempt !== b.exempt) return a.exempt ? 1 : -1;
       return b.count - a.count;
@@ -101,7 +105,7 @@ export default function WeeklyPenalty({
       </div>
 
       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-lg px-3 py-1.5 mb-3 text-xs text-blue-800 dark:text-blue-200">
-        목표 <span className="font-bold">{rule.target}회</span> · 미달 <span className="font-bold">{rule.penaltyPerMiss.toLocaleString()}원</span>/회
+        목표 <span className="font-bold">{rule.target}회</span> · 미달 <span className="font-bold">{rule.penaltyPerMiss.toLocaleString()}원</span>/회{progressivePenalty && " (누적)"}
         {rule.rewardPerExtra > 0 && <> · 초과 <span className="font-bold text-green-700 dark:text-green-300">-{rule.rewardPerExtra.toLocaleString()}원</span>/회</>}
       </div>
 
@@ -122,6 +126,11 @@ export default function WeeklyPenalty({
                   </span>
                   <span className={`text-xs font-mono ${isCurrentWeek ? "text-gray-300 dark:text-gray-600" : m.penalty > 0 ? "text-red-500 dark:text-red-400" : m.penalty < 0 ? "text-green-500 dark:text-green-400" : "text-gray-400"}`}>
                     {isCurrentWeek ? "-" : formatCurrency(m.penalty)}
+                    {!isCurrentWeek && progressivePenalty && m.missed > 1 && (
+                      <span className="text-[8px] text-gray-400 dark:text-gray-500 ml-0.5">
+                        ({Array.from({ length: m.missed }, (_, i) => i + 1).join("+")})
+                      </span>
+                    )}
                   </span>
                 </>
               )}

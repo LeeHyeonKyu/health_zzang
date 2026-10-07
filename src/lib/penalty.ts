@@ -8,6 +8,8 @@ export interface PenaltyInput {
   defaultTargetCount: number;
   defaultPenaltyPerMiss: number;
   defaultRewardPerExtra: number;
+  progressivePenalty?: boolean;
+  progressiveStep?: number;
   members: { id: string; nickname: string }[];
   workouts: { user_id: string; date: string; tagged_with?: string[] }[];
   weeklyRules: { week_start: string; target_count: number; penalty_per_miss: number; reward_per_extra: number }[];
@@ -70,7 +72,16 @@ export function calcMemberPenalties(input: PenaltyInput): MemberPenalty[] {
       totalWorkouts += count;
       const missed = Math.max(0, target - count);
       const extra = Math.max(0, count - target);
-      totalPenalty += missed * penaltyPerMiss - extra * rewardPerExtra;
+      let missPenalty: number;
+      if (input.progressivePenalty && missed > 0) {
+        const step = input.progressiveStep ?? penaltyPerMiss;
+        // miss 1: base, miss 2: base+step, miss 3: base+2*step, ...
+        // total = missed*base + step*missed*(missed-1)/2
+        missPenalty = missed * penaltyPerMiss + step * missed * (missed - 1) / 2;
+      } else {
+        missPenalty = missed * penaltyPerMiss;
+      }
+      totalPenalty += missPenalty - extra * rewardPerExtra;
     }
 
     return { id: m.id, nickname: m.nickname, totalWorkouts, totalPenalty, exemptedWeeks };

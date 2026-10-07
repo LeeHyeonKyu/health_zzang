@@ -19,6 +19,7 @@ interface Props {
     default_penalty_per_miss: number;
     default_reward_per_extra: number;
   };
+  progressivePenalty: boolean;
   weekStart: string;
   currentOverride: {
     target_count: number;
@@ -28,11 +29,12 @@ interface Props {
   pastWeeks: WeekRule[];
 }
 
-export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, currentOverride, pastWeeks }: Props) {
+export default function SeasonRulesForm({ seasonId, defaultValues, progressivePenalty: initialProgressive, weekStart, currentOverride, pastWeeks }: Props) {
   const router = useRouter();
   const [defaultLoading, setDefaultLoading] = useState(false);
   const [defaultMessage, setDefaultMessage] = useState("");
   const [applyToPast, setApplyToPast] = useState(false);
+  const [progressive, setProgressive] = useState(initialProgressive);
   const [loading, setLoading] = useState(false);
   const [editingWeek, setEditingWeek] = useState<string | null>(null);
   const [weekMessage, setWeekMessage] = useState("");
@@ -49,6 +51,7 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
       default_target_count: Number(form.get("default_target_count")),
       default_penalty_per_miss: Number(form.get("default_penalty_per_miss")),
       default_reward_per_extra: Number(form.get("default_reward_per_extra")) || 0,
+      progressive_penalty: progressive,
     };
 
     const res = await fetch("/api/season", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -95,16 +98,34 @@ export default function SeasonRulesForm({ seasonId, defaultValues, weekStart, cu
             defaults={{ target_count: defaultValues.default_target_count, penalty_per_miss: defaultValues.default_penalty_per_miss, reward_per_extra: defaultValues.default_reward_per_extra }}
           />
 
-          <label className="flex items-center gap-2 cursor-pointer py-1">
-            <button
-              type="button"
-              onClick={() => setApplyToPast(!applyToPast)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${applyToPast ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"}`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${applyToPast ? "translate-x-5" : ""}`} />
-            </button>
-            <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-gray-500">이전 주에도 소급 적용</span>
-          </label>
+          <div className="space-y-2 py-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setProgressive(!progressive)}
+                className={`relative w-10 h-5 rounded-full transition-colors ${progressive ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${progressive ? "translate-x-5" : ""}`} />
+              </button>
+              <div>
+                <span className="text-xs text-gray-600 dark:text-gray-400">누적 벌금 체계</span>
+                {progressive && (
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500">미달 1회=1배, 2회=3배, 3회=6배 (삼각수)</p>
+                )}
+              </div>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <button
+                type="button"
+                onClick={() => setApplyToPast(!applyToPast)}
+                className={`relative w-10 h-5 rounded-full transition-colors ${applyToPast ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${applyToPast ? "translate-x-5" : ""}`} />
+              </button>
+              <span className="text-xs text-gray-600 dark:text-gray-400">이전 주에도 소급 적용</span>
+            </label>
+          </div>
 
           {defaultMessage && <p className={`text-sm ${defaultMessage.includes("실패") ? "text-red-500" : "text-green-600"}`}>{defaultMessage}</p>}
           <button type="submit" disabled={defaultLoading} className="w-full py-2.5 rounded-lg bg-gray-800 text-white text-sm font-semibold hover:bg-gray-900 disabled:opacity-50 transition-colors">
