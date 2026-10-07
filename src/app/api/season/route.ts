@@ -50,6 +50,18 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (action === "update_info") {
+    const { name, start_date, end_date } = body;
+    const update: Record<string, unknown> = {};
+    if (name) update.name = name;
+    if (start_date) update.start_date = start_date;
+    update.end_date = end_date;
+
+    const { error } = await supabase.from("season").update(update).eq("id", season_id);
+    if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED", message: error.message } }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   if (action === "update_defaults") {
     const { default_target_count, default_penalty_per_miss, default_reward_per_extra } = body;
 

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUser, getProfile, getActiveSeason } from "@/lib/data";
 import CreateSeasonForm from "./create-season-form";
-import EndSeasonButton from "./end-season-button";
+import SeasonInfoForm from "./season-info-form";
 import SeasonRulesForm from "./season-rules-form";
 import ChangePasswordForm from "./change-password-form";
 import SettingsTabs from "./settings-tabs";
@@ -67,25 +67,13 @@ export default async function SettingsPage() {
   const seasonTab = activeSeason ? (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">{activeSeason.name}</h3>
-          <span className="text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full">진행 중</span>
-        </div>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between py-2 border-b border-gray-50">
-            <span className="text-gray-500">시작일</span>
-            <span className="font-medium text-gray-900">{activeSeason.start_date}</span>
-          </div>
-          <div className="flex justify-between py-2 border-b border-gray-50">
-            <span className="text-gray-500">종료일</span>
-            <span className="font-medium text-gray-900">{activeSeason.end_date ?? "미정"}</span>
-          </div>
-          <div className="flex justify-between py-2">
-            <span className="text-gray-500">경과</span>
-            <span className="font-medium text-gray-900">{daysElapsed}일</span>
-          </div>
-        </div>
-        <EndSeasonButton seasonId={activeSeason.id} />
+        <SeasonInfoForm
+          seasonId={activeSeason.id}
+          name={activeSeason.name}
+          startDate={activeSeason.start_date}
+          endDate={activeSeason.end_date}
+          daysElapsed={daysElapsed}
+        />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
