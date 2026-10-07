@@ -14,11 +14,11 @@ interface Props {
 
 export default function WorkoutCard({ date, note, media }: Props) {
   return (
-    <div className="bg-white border rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
       {media.length > 0 && (
         <div className={`grid gap-1 ${media.length === 1 ? "grid-cols-1" : media.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
           {media.map((m) => (
-            <a key={m.r2_key} href={m.url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-gray-100">
+            <a key={m.r2_key} href={m.url} target="_blank" rel="noopener noreferrer" className="block aspect-square bg-gray-100 dark:bg-[#111]">
               {m.type === "photo" ? (
                 <img src={m.url} alt="" className="w-full h-full object-cover" loading="lazy" />
               ) : (
@@ -29,8 +29,8 @@ export default function WorkoutCard({ date, note, media }: Props) {
         </div>
       )}
       <div className="p-3">
-        <p className="text-sm font-medium text-gray-800">{formatDate(date)}</p>
-        {note && <p className="text-sm text-gray-500 mt-1">{note}</p>}
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{formatDate(date)}</p>
+        {note && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{note}</p>}
       </div>
     </div>
   );

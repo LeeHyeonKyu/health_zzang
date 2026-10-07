@@ -45,20 +45,20 @@ export default function CalendarView({ workoutDates, onDateSelect, selectedDate 
   const monthLabel = `${currentMonth.year}년 ${currentMonth.month + 1}월`;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+        <button onClick={prevMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors text-gray-500 dark:text-gray-400">
           ◀
         </button>
-        <h3 className="text-sm font-bold text-gray-900">{monthLabel}</h3>
-        <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">{monthLabel}</h3>
+        <button onClick={nextMonth} className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg transition-colors text-gray-500 dark:text-gray-400">
           ▶
         </button>
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-1">
         {DAY_LABELS.map((label) => (
-          <div key={label} className="text-center text-[10px] font-semibold text-gray-400 uppercase py-1">
+          <div key={label} className="text-center text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase py-1">
             {label}
           </div>
         ))}
@@ -81,7 +81,7 @@ export default function CalendarView({ workoutDates, onDateSelect, selectedDate 
               key={day}
               onClick={() => onDateSelect(dateStr)}
               className={`relative flex flex-col items-center justify-center py-2 rounded-lg text-sm transition-colors
-                ${isSelected ? "bg-blue-600 text-white" : isToday ? "bg-blue-50 text-blue-700 font-semibold" : "text-gray-700 hover:bg-gray-50"}
+                ${isSelected ? "bg-blue-600 text-white" : isToday ? "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-semibold" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#222]"}
               `}
             >
               {day}

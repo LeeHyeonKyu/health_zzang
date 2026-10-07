@@ -103,8 +103,8 @@ export default function RecordsContent({
 
   if (!seasonName) {
     return (
-      <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-        <p className="text-gray-500">현재 진행 중인 시즌이 없습니다.</p>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-8 text-center shadow-sm border border-gray-100 dark:border-gray-800">
+        <p className="text-gray-500 dark:text-gray-400">현재 진행 중인 시즌이 없습니다.</p>
       </div>
     );
   }
@@ -114,13 +114,13 @@ export default function RecordsContent({
       <div>
         <button
           onClick={() => setSelectedMember(null)}
-          className="text-sm text-blue-600 hover:underline mb-4"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-4"
         >
           ← 전체 기록
         </button>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4">
-          <h2 className="text-lg font-bold text-gray-900">{selectedMemberInfo.nickname}</h2>
-          <p className="text-sm text-gray-500 mt-1">
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4 mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{selectedMemberInfo.nickname}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             시즌 운동 {memberWorkoutCount}회
           </p>
         </div>
@@ -148,15 +148,15 @@ export default function RecordsContent({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+        <div className="flex gap-1 bg-gray-100 dark:bg-[#1f1f1f] rounded-lg p-0.5">
           {(["weekly", "monthly", "feed"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                 viewMode === mode
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 shadow-sm"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
               }`}
             >
               {mode === "weekly" ? "주간" : mode === "monthly" ? "월간" : "피드"}
@@ -167,8 +167,8 @@ export default function RecordsContent({
           onClick={() => setMyOnly(!myOnly)}
           className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
             myOnly
-              ? "bg-blue-50 border-blue-200 text-blue-700"
-              : "bg-white border-gray-200 text-gray-500"
+              ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+              : "bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"
           }`}
         >
           {myOnly ? "내 기록" : "전체"}
@@ -229,25 +229,25 @@ function WeeklyView({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">◀</button>
+        <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400">◀</button>
         <div className="text-center">
-          <span className="text-sm font-semibold text-gray-900">{weekLabel}</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{weekLabel}</span>
           {weekOffset !== 0 && (
-            <button onClick={() => setWeekOffset(0)} className="ml-2 text-xs text-blue-600 hover:underline">이번 주</button>
+            <button onClick={() => setWeekOffset(0)} className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">이번 주</button>
           )}
         </div>
-        <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500" disabled={weekOffset >= 0}>
+        <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400" disabled={weekOffset >= 0}>
           {weekOffset < 0 ? "▶" : ""}
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-200 bg-gray-50">
-          <div className="py-2 px-2 text-left text-xs font-semibold text-gray-500">크루원</div>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+        <div className="grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
+          <div className="py-2 px-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">크루원</div>
           {DAY_LABELS.map((d, i) => (
-            <div key={d} className="py-2 text-[10px] font-semibold text-gray-400">
+            <div key={d} className="py-2 text-[10px] font-semibold text-gray-400 dark:text-gray-500">
               <div>{d}</div>
-              <div className="text-[9px] text-gray-300">{weekDates[i]?.slice(5)}</div>
+              <div className="text-[9px] text-gray-300 dark:text-gray-600">{weekDates[i]?.slice(5)}</div>
             </div>
           ))}
         </div>
@@ -260,21 +260,21 @@ function WeeklyView({
           return (
             <div
               key={member.id}
-              className={`grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-50 last:border-0 ${isMe ? "bg-yellow-50" : ""}`}
+              className={`grid grid-cols-[1fr_repeat(7,_minmax(0,_1fr))] text-center border-b border-gray-50 dark:border-gray-800 last:border-0 ${isMe ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}
             >
               <button
                 onClick={() => onMemberClick(member.id)}
-                className="py-2.5 px-2 text-left text-xs font-medium text-gray-900 hover:text-blue-600 truncate"
+                className="py-2.5 px-2 text-left text-xs font-medium text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 truncate"
               >
                 {member.nickname}
-                {isMe && <span className="text-gray-400 ml-0.5">(나)</span>}
+                {isMe && <span className="text-gray-400 dark:text-gray-500 ml-0.5">(나)</span>}
               </button>
               {weekDates.map((date) => (
                 <div key={date} className="py-2.5 flex items-center justify-center">
                   {workoutDateSet.has(date) ? (
                     <span className="w-5 h-5 rounded-full bg-green-500 text-white text-[10px] flex items-center justify-center font-bold">✓</span>
                   ) : (
-                    <span className="w-5 h-5 rounded-full bg-gray-100" />
+                    <span className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-700" />
                   )}
                 </div>
               ))}
@@ -311,7 +311,7 @@ function MonthlyView({
       />
       {selectedDate && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">{formatDate(selectedDate)}</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{formatDate(selectedDate)}</h3>
           {selectedItems.length === 0 ? (
             <p className="text-sm text-gray-400">해당 날짜에 인증 기록이 없습니다.</p>
           ) : (
@@ -344,8 +344,8 @@ function FeedView({
 }) {
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-        <p className="text-gray-500">아직 인증이 없습니다.</p>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-8 text-center shadow-sm border border-gray-100 dark:border-gray-800">
+        <p className="text-gray-500 dark:text-gray-400">아직 인증이 없습니다.</p>
       </div>
     );
   }

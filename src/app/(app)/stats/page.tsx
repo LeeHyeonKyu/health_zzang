@@ -18,9 +18,9 @@ export default async function StatsPage() {
 
   if (!activeSeason) {
     return (
-      <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
-        <p className="text-gray-500">현재 진행 중인 시즌이 없습니다.</p>
-        <Link href="/settings" prefetch={false} className="text-blue-600 hover:underline text-sm mt-3 inline-block font-medium">시즌 시작하기 →</Link>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-8 text-center shadow-sm border border-gray-100 dark:border-gray-800">
+        <p className="text-gray-500 dark:text-gray-400">현재 진행 중인 시즌이 없습니다.</p>
+        <Link href="/settings" prefetch={false} className="text-blue-600 dark:text-blue-400 hover:underline text-sm mt-3 inline-block font-medium">시즌 시작하기 →</Link>
       </div>
     );
   }
@@ -117,66 +117,66 @@ export default async function StatsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-        <h2 className="text-base font-bold text-blue-800 mb-2">{activeSeason.name}</h2>
+      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl p-4">
+        <h2 className="text-base font-bold text-blue-800 dark:text-blue-200 mb-2">{activeSeason.name}</h2>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-2xl font-bold text-blue-900">{daysElapsed}</p>
-            <p className="text-xs text-blue-600">경과일</p>
+            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{daysElapsed}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">경과일</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-blue-900">{weeksElapsed}</p>
-            <p className="text-xs text-blue-600">경과주</p>
+            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{weeksElapsed}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">경과주</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-blue-900">{members.length}</p>
-            <p className="text-xs text-blue-600">참여 인원</p>
+            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{members.length}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">참여 인원</p>
           </div>
         </div>
       </div>
 
       {myStats && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-bold text-gray-900 mb-3">내 통계</h3>
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">내 통계</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900">{myStats.count}회</p>
-              <p className="text-xs text-gray-500">총 운동</p>
+            <div className="bg-gray-50 dark:bg-[#111] rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{myStats.count}회</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">총 운동</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900">{myStats.avgPerWeek}</p>
-              <p className="text-xs text-gray-500">주당 평균</p>
+            <div className="bg-gray-50 dark:bg-[#111] rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{myStats.avgPerWeek}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">주당 평균</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-gray-900">{streak}일</p>
-              <p className="text-xs text-gray-500">연속 운동</p>
+            <div className="bg-gray-50 dark:bg-[#111] rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{streak}일</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">연속 운동</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className={`text-2xl font-bold ${myStats.totalPenalty > 0 ? "text-red-600" : myStats.totalPenalty < 0 ? "text-green-600" : "text-gray-400"}`}>
+            <div className="bg-gray-50 dark:bg-[#111] rounded-lg p-3 text-center">
+              <p className={`text-2xl font-bold ${myStats.totalPenalty > 0 ? "text-red-600 dark:text-red-400" : myStats.totalPenalty < 0 ? "text-green-600 dark:text-green-400" : "text-gray-400 dark:text-gray-500"}`}>
                 {formatCurrency(myStats.totalPenalty)}
               </p>
-              <p className="text-xs text-gray-500">벌금</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">벌금</p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h3 className="text-sm font-bold text-gray-900 mb-3">크루 랭킹</h3>
+      <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm p-4">
+        <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">크루 랭킹</h3>
         <div className="space-y-2">
           {ranking.map((m, i) => (
-            <div key={m.id} className={`flex items-center gap-3 py-2 px-3 rounded-lg ${m.id === user.id ? "bg-yellow-50" : ""}`}>
+            <div key={m.id} className={`flex items-center gap-3 py-2 px-3 rounded-lg ${m.id === user.id ? "bg-yellow-50 dark:bg-yellow-950" : ""}`}>
               <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
-                i === 0 ? "bg-yellow-400 text-white" : i === 1 ? "bg-gray-300 text-white" : i === 2 ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500"
+                i === 0 ? "bg-yellow-400 text-white" : i === 1 ? "bg-gray-300 text-white" : i === 2 ? "bg-amber-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
               }`}>
                 {i + 1}
               </span>
-              <span className="flex-1 text-sm font-medium text-gray-900">
+              <span className="flex-1 text-sm font-medium text-gray-900 dark:text-gray-100">
                 {m.nickname}
-                {m.id === user.id && <span className="text-xs text-gray-400 ml-1">(나)</span>}
+                {m.id === user.id && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(나)</span>}
               </span>
-              <span className="text-sm font-mono font-semibold text-gray-700">{m.count}회</span>
-              <span className={`text-xs font-mono ${m.totalPenalty > 0 ? "text-red-500" : m.totalPenalty < 0 ? "text-green-500" : "text-gray-400"}`}>
+              <span className="text-sm font-mono font-semibold text-gray-700 dark:text-gray-300">{m.count}회</span>
+              <span className={`text-xs font-mono ${m.totalPenalty > 0 ? "text-red-500 dark:text-red-400" : m.totalPenalty < 0 ? "text-green-500 dark:text-green-400" : "text-gray-400 dark:text-gray-500"}`}>
                 {formatCurrency(m.totalPenalty)}
               </span>
             </div>

@@ -8,11 +8,12 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "로그인이 필요합니다" } }, { status: 401 });
 
   const body = await request.json();
-  const { date, note, media, user_id: targetUserId } = body as {
+  const { date, note, media, user_id: targetUserId, tagged_with } = body as {
     date: string;
     note?: string;
     media?: { r2_key: string; type: "photo" | "video"; size_bytes: number }[];
     user_id?: string;
+    tagged_with?: string[];
   };
 
   if (!date) return NextResponse.json({ error: { code: "MISSING_DATE", message: "날짜를 선택해주세요" } }, { status: 400 });
@@ -31,11 +32,14 @@ export async function POST(request: NextRequest) {
   const { data: existing } = await supabase.from("workout").select("id").eq("user_id", effectiveUserId).eq("date", date).single();
   if (existing) return NextResponse.json({ error: { code: "DUPLICATE_DATE", message: "이미 인증한 날짜입니다" } }, { status: 400 });
 
+  const validTags = (tagged_with ?? []).filter((id) => id !== effectiveUserId);
+
   const { data: workout, error: workoutError } = await supabase.from("workout").insert({
     user_id: effectiveUserId,
     season_id: activeSeason.id,
     date,
     note: note || null,
+    tagged_with: validTags.length > 0 ? validTags : [],
   }).select().single();
 
   if (workoutError) return NextResponse.json({ error: { code: "CREATE_FAILED", message: workoutError.message } }, { status: 500 });
@@ -48,6 +52,25 @@ export async function POST(request: NextRequest) {
       size_bytes: m.size_bytes,
     }));
     await supabase.from("media").insert(mediaInserts);
+  }
+
+  if (validTags.length > 0) {
+    const { data: taggerProfile } = await supabase.from("profiles").select("nickname").eq("id", effectiveUserId).single();
+    const taggerName = taggerProfile?.nickname ?? "크루원";
+
+    for (const taggedUserId of validTags) {
+      const { data: existingTagged } = await supabase.from("workout").select("id").eq("user_id", taggedUserId).eq("date", date).single();
+      if (existingTagged) continue;
+
+      await supabase.from("workout").insert({
+        user_id: taggedUserId,
+        season_id: activeSeason.id,
+        date,
+        note: `${taggerName}님과 함께`,
+        source_workout_id: workout.id,
+        tagged_with: [],
+      });
+    }
   }
 
   revalidatePath("/records");

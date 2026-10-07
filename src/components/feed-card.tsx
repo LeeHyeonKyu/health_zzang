@@ -19,9 +19,9 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick }:
   const firstMedia = media[0];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
       {firstMedia && (
-        <div className="aspect-[4/3] bg-gray-100 relative">
+        <div className="aspect-[4/3] bg-gray-100 dark:bg-[#111] relative">
           {firstMedia.type === "photo" ? (
             <img src={firstMedia.url} alt="" className="w-full h-full object-cover" loading="lazy" />
           ) : (
@@ -37,15 +37,15 @@ export default function FeedCard({ nickname, date, note, media, onMemberClick }:
       <div className="p-4">
         <div className="flex items-center justify-between mb-1">
           {onMemberClick ? (
-            <button onClick={onMemberClick} className="text-sm font-bold text-gray-900 hover:text-blue-600">
+            <button onClick={onMemberClick} className="text-sm font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">
               {nickname}
             </button>
           ) : (
-            <span className="text-sm font-bold text-gray-900">{nickname}</span>
+            <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{nickname}</span>
           )}
-          <span className="text-xs text-gray-400">{formatDate(date)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{formatDate(date)}</span>
         </div>
-        {note && <p className="text-sm text-gray-600 mt-1">{note}</p>}
+        {note && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{note}</p>}
       </div>
     </div>
   );

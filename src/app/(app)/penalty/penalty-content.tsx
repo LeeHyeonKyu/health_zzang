@@ -135,13 +135,13 @@ export default function PenaltyContent({
 
   return (
     <div>
-      <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 mb-4">
+      <div className="flex gap-1 bg-gray-100 dark:bg-[#1f1f1f] rounded-lg p-0.5 mb-4">
         {(["cumulative", "weekly"] as const).map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
             className={`flex-1 px-3 py-2 text-xs font-semibold rounded-md transition-colors ${
-              view === v ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              view === v ? "bg-white dark:bg-[#2a2a2a] text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
             }`}
           >
             {v === "cumulative" ? "시즌 누적" : "주간 상세"}
@@ -151,37 +151,37 @@ export default function PenaltyContent({
 
       {view === "cumulative" && (
         <div>
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-4">
-            <p className="text-sm font-bold text-blue-800">{seasonName}</p>
-            <p className="text-xs text-blue-600 mt-1">완료된 주까지의 누적 (진행 중인 주 제외)</p>
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl px-4 py-3 mb-4">
+            <p className="text-sm font-bold text-blue-800 dark:text-blue-200">{seasonName}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">완료된 주까지의 누적 (진행 중인 주 제외)</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">크루원</th>
-                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">운동</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">벌금</th>
+                <tr className="bg-gray-50 dark:bg-[#111] border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">크루원</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">운동</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">벌금</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {cumulativeData.map((m) => (
-                  <tr key={m.id} className={m.id === currentUserId ? "bg-yellow-50" : "hover:bg-gray-50"}>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                      {m.nickname}{m.id === currentUserId && <span className="text-xs text-gray-400 ml-1">(나)</span>}
+                  <tr key={m.id} className={m.id === currentUserId ? "bg-yellow-50 dark:bg-yellow-950" : "hover:bg-gray-50 dark:hover:bg-[#222]"}>
+                    <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {m.nickname}{m.id === currentUserId && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(나)</span>}
                     </td>
-                    <td className="py-3 px-4 text-center text-sm font-mono font-semibold text-gray-700">{m.totalWorkouts}회</td>
-                    <td className={`py-3 px-4 text-right text-sm font-mono font-semibold ${m.totalPenalty > 0 ? "text-red-600" : m.totalPenalty < 0 ? "text-green-600" : "text-gray-400"}`}>
+                    <td className="py-3 px-4 text-center text-sm font-mono font-semibold text-gray-700 dark:text-gray-300">{m.totalWorkouts}회</td>
+                    <td className={`py-3 px-4 text-right text-sm font-mono font-semibold ${m.totalPenalty > 0 ? "text-red-600 dark:text-red-400" : m.totalPenalty < 0 ? "text-green-600 dark:text-green-400" : "text-gray-400 dark:text-gray-500"}`}>
                       {formatCurrency(m.totalPenalty)}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-gray-200 bg-gray-50">
-                  <td className="py-3 px-4 text-sm font-bold text-gray-900">합계</td>
+                <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
+                  <td className="py-3 px-4 text-sm font-bold text-gray-900 dark:text-gray-100">합계</td>
                   <td />
-                  <td className={`py-3 px-4 text-right text-sm font-mono font-bold ${grandTotal > 0 ? "text-red-600" : grandTotal < 0 ? "text-green-600" : "text-gray-500"}`}>
+                  <td className={`py-3 px-4 text-right text-sm font-mono font-bold ${grandTotal > 0 ? "text-red-600 dark:text-red-400" : grandTotal < 0 ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}`}>
                     {formatCurrency(grandTotal)}
                   </td>
                 </tr>
@@ -197,56 +197,56 @@ export default function PenaltyContent({
             <button
               onClick={() => setWeekOffset(weekOffset - 1)}
               disabled={selectedWeekIdx <= 0}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 disabled:opacity-30"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400 disabled:opacity-30"
             >◀</button>
             <div className="text-center">
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {selectedWeek ? weekLabel(selectedWeek) : ""}
               </span>
               {isSelectedWeekCurrent && (
-                <span className="ml-2 text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">진행 중</span>
+                <span className="ml-2 text-[10px] font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950 px-1.5 py-0.5 rounded-full">진행 중</span>
               )}
               {weekOffset !== 0 && !isSelectedWeekCurrent && (
-                <button onClick={() => setWeekOffset(0)} className="ml-2 text-xs text-blue-600 hover:underline">이번 주</button>
+                <button onClick={() => setWeekOffset(0)} className="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:underline">이번 주</button>
               )}
             </div>
             <button
               onClick={() => setWeekOffset(weekOffset + 1)}
               disabled={selectedWeekIdx >= allWeeks.length - 1}
-              className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 disabled:opacity-30"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] rounded-lg text-gray-500 dark:text-gray-400 disabled:opacity-30"
             >▶</button>
           </div>
 
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2 mb-4 text-sm text-blue-800">
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl px-4 py-2 mb-4 text-sm text-blue-800 dark:text-blue-200">
             목표 <span className="font-bold">{selectedRule.target}회</span> · 미달 <span className="font-bold">{selectedRule.penaltyPerMiss.toLocaleString()}원</span>/회
-            {selectedRule.rewardPerExtra > 0 && <> · 초과 <span className="font-bold text-green-700">-{selectedRule.rewardPerExtra.toLocaleString()}원</span>/회</>}
+            {selectedRule.rewardPerExtra > 0 && <> · 초과 <span className="font-bold text-green-700 dark:text-green-300">-{selectedRule.rewardPerExtra.toLocaleString()}원</span>/회</>}
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white dark:bg-[#1a1a1a] rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">크루원</th>
-                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">인증</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">
+                <tr className="bg-gray-50 dark:bg-[#111] border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">크루원</th>
+                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">인증</th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
                     {isSelectedWeekCurrent ? "벌금 (집계 전)" : "벌금"}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {weeklyData.map((m) => (
-                  <tr key={m.id} className={m.id === currentUserId ? "bg-yellow-50" : "hover:bg-gray-50"}>
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                      {m.nickname}{m.id === currentUserId && <span className="text-xs text-gray-400 ml-1">(나)</span>}
+                  <tr key={m.id} className={m.id === currentUserId ? "bg-yellow-50 dark:bg-yellow-950" : "hover:bg-gray-50 dark:hover:bg-[#222]"}>
+                    <td className="py-3 px-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {m.nickname}{m.id === currentUserId && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(나)</span>}
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <span className={`text-sm font-mono font-semibold ${m.count >= selectedRule.target ? "text-green-600" : "text-gray-900"}`}>
-                        {m.count}<span className="text-gray-400">/{selectedRule.target}</span>
+                      <span className={`text-sm font-mono font-semibold ${m.count >= selectedRule.target ? "text-green-600 dark:text-green-400" : "text-gray-900 dark:text-gray-100"}`}>
+                        {m.count}<span className="text-gray-400 dark:text-gray-500">/{selectedRule.target}</span>
                       </span>
                     </td>
                     <td className={`py-3 px-4 text-right text-sm font-mono font-semibold ${
-                      isSelectedWeekCurrent ? "text-gray-300" :
-                      m.penalty > 0 ? "text-red-600" : m.penalty < 0 ? "text-green-600" : "text-gray-400"
+                      isSelectedWeekCurrent ? "text-gray-300 dark:text-gray-600" :
+                      m.penalty > 0 ? "text-red-600 dark:text-red-400" : m.penalty < 0 ? "text-green-600 dark:text-green-400" : "text-gray-400 dark:text-gray-500"
                     }`}>
                       {isSelectedWeekCurrent ? "-" : formatCurrency(m.penalty)}
                     </td>
@@ -255,10 +255,10 @@ export default function PenaltyContent({
               </tbody>
               {!isSelectedWeekCurrent && (
                 <tfoot>
-                  <tr className="border-t-2 border-gray-200 bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-bold text-gray-900">합계</td>
+                  <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#111]">
+                    <td className="py-3 px-4 text-sm font-bold text-gray-900 dark:text-gray-100">합계</td>
                     <td />
-                    <td className={`py-3 px-4 text-right text-sm font-mono font-bold ${weekTotal > 0 ? "text-red-600" : weekTotal < 0 ? "text-green-600" : "text-gray-500"}`}>
+                    <td className={`py-3 px-4 text-right text-sm font-mono font-bold ${weekTotal > 0 ? "text-red-600 dark:text-red-400" : weekTotal < 0 ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}`}>
                       {formatCurrency(weekTotal)}
                     </td>
                   </tr>
