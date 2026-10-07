@@ -41,6 +41,13 @@ export default async function FeedPage() {
     }
   }
 
+  const lastFeedDates: Record<string, string> = {};
+  for (const item of feedItems) {
+    if (!lastFeedDates[item.userId] || item.date > lastFeedDates[item.userId]) {
+      lastFeedDates[item.userId] = item.date;
+    }
+  }
+
   return (
     <FeedContent
       currentUserId={user.id}
@@ -48,6 +55,7 @@ export default async function FeedPage() {
       feedItems={feedItems}
       seasonStartDate={activeSeason.start_date}
       avatarMap={avatarMap}
+      lastFeedDates={lastFeedDates}
     />
   );
 }

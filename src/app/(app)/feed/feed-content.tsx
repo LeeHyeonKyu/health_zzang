@@ -18,9 +18,10 @@ interface Props {
   feedItems: FeedItem[];
   seasonStartDate: string;
   avatarMap?: Record<string, string>;
+  lastFeedDates?: Record<string, string>;
 }
 
-export default function FeedContent({ currentUserId, members, feedItems, seasonStartDate, avatarMap }: Props) {
+export default function FeedContent({ currentUserId, members, feedItems, seasonStartDate, avatarMap, lastFeedDates }: Props) {
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
   const router = useRouter();
@@ -49,6 +50,7 @@ export default function FeedContent({ currentUserId, members, feedItems, seasonS
         selected={selectedMember}
         onSelect={setSelectedMember}
         avatarMap={avatarMap}
+        lastFeedDates={lastFeedDates}
       />
       <FeedView
         items={filtered}

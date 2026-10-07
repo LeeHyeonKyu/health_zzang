@@ -13,9 +13,18 @@ interface Props {
   selected: string | null;
   onSelect: (id: string | null) => void;
   avatarMap?: Record<string, string>;
+  lastFeedDates?: Record<string, string>;
 }
 
-export default function MemberBadges({ members, currentUserId, selected, onSelect, avatarMap }: Props) {
+export default function MemberBadges({ members, currentUserId, selected, onSelect, avatarMap, lastFeedDates }: Props) {
+  const sorted = [...members].sort((a, b) => {
+    if (a.id === currentUserId) return -1;
+    if (b.id === currentUserId) return 1;
+    const dateA = lastFeedDates?.[a.id] ?? "";
+    const dateB = lastFeedDates?.[b.id] ?? "";
+    return dateB.localeCompare(dateA);
+  });
+
   return (
     <div className="flex gap-3 overflow-x-auto pb-3 mb-3" style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}>
       <button
@@ -27,7 +36,7 @@ export default function MemberBadges({ members, currentUserId, selected, onSelec
         }`}>전체</div>
         <span className={`text-[10px] ${selected === null ? "text-blue-600 dark:text-blue-400 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>전체</span>
       </button>
-      {members.map((m) => (
+      {sorted.map((m) => (
         <button
           key={m.id}
           onClick={() => onSelect(selected === m.id ? null : m.id)}
