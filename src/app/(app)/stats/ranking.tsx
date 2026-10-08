@@ -15,8 +15,8 @@ export default function Ranking({ members, currentUserId, avatarMap }: { members
   const [sortBy, setSortBy] = useState<"count" | "penalty">("penalty");
 
   const sorted = [...members].sort((a, b) => {
-    if (sortBy === "count") return b.count - a.count;
-    return a.totalPenalty - b.totalPenalty;
+    if (sortBy === "count") return b.count - a.count || a.totalPenalty - b.totalPenalty;
+    return a.totalPenalty - b.totalPenalty || b.count - a.count;
   });
 
   return (
