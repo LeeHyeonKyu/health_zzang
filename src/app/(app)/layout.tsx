@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/components/theme-toggle";
 import PerfReporter from "@/components/perf-reporter";
+import PWAInstallBanner from "@/components/pwa-install-banner";
 import Avatar from "@/components/avatar";
 import { getUser, getProfile } from "@/lib/data";
 import { getReadUrl } from "@/lib/r2";
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh flex flex-col">
       <PerfReporter />
+      <PWAInstallBanner />
       <header className="sticky top-0 z-10 bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-screen-sm md:max-w-screen-md mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/records" prefetch={false} className="text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">💪 Health Zzang</Link>

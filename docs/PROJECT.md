@@ -166,6 +166,8 @@ date: 2026-10-06
 | 7 | [비밀번호 변경](features/007.md) | P1 | 1 | backlog |
 | 8 | [반응형 레이아웃 통일](features/008.md) | P0 | 1 | backlog |
 | 9 | [달력 뷰 + 크루 피드 뷰](features/009.md) | P1 | 2, 5, 6 | backlog |
+| 17 | [게시물 이모지 반응 및 댓글](features/017.md) | P1 | 2, 9 | backlog |
+| 18 | [PWA 홈 화면 앱 설치](features/018.md) | P1 | — | backlog |
 | | | | | |
 
 **Technical Foundation:** [TECHNICAL.md](TECHNICAL.md)

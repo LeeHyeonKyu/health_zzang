@@ -8,6 +8,7 @@ import ChangePasswordForm from "./change-password-form";
 import AvatarUpload from "./avatar-upload";
 import SettingsTabs from "./settings-tabs";
 import LogoutButton from "@/components/logout-button";
+import PWAInstallSettings from "@/components/pwa-install-settings";
 import { getWeekStart, getWeekEnd, getAllWeeks, formatWeekLabel, formatDateShort } from "@/lib/utils";
 
 export default async function SettingsPage() {
@@ -131,9 +132,16 @@ export default async function SettingsPage() {
     </div>
   );
 
+  const appTab = (
+    <div className="space-y-6">
+      <PWAInstallSettings />
+    </div>
+  );
+
   const tabs = [
     { id: "season", label: "시즌 설정", content: seasonTab },
     { id: "account", label: "개인 설정", content: accountTab },
+    { id: "app", label: "앱", content: appTab },
   ];
 
   return <SettingsTabs tabs={tabs} />;
