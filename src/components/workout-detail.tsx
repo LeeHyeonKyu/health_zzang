@@ -17,6 +17,7 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(item.note ?? "");
   const [editDate, setEditDate] = useState(item.date);
+  const [editTaggedIds, setEditTaggedIds] = useState<string[]>(item.taggedIds ?? []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -41,7 +42,7 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
     const res = await fetch("/api/workout", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workout_id: item.id, date: editDate, note: editNote }),
+      body: JSON.stringify({ workout_id: item.id, date: editDate, note: editNote, tagged_with: editTaggedIds }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
@@ -146,12 +147,33 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
                 className="input-base mt-1 resize-none"
               />
             </div>
+            {members.filter((m) => m.id !== item.userId).length > 0 && (
+              <div>
+                <label className="text-xs font-medium text-gray-500 dark:text-gray-400">함께 운동한 크루원</label>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {members.filter((m) => m.id !== item.userId).map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setEditTaggedIds((prev) => prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id])}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        editTaggedIds.includes(m.id)
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+                      }`}
+                    >
+                      {editTaggedIds.includes(m.id) ? "✓ " : ""}{m.nickname}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
             <div className="flex gap-2">
               <button onClick={handleSave} disabled={saving} className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-50">
                 {saving ? "저장 중..." : "저장"}
               </button>
-              <button onClick={() => { setEditing(false); setError(""); }} className="flex-1 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400">
+              <button onClick={() => { setEditing(false); setError(""); setEditDate(item.date); setEditNote(item.note ?? ""); setEditTaggedIds(item.taggedIds ?? []); }} className="flex-1 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400">
                 취소
               </button>
             </div>
@@ -163,6 +185,9 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
             )}
             {!item.note && (
               <p className="text-sm text-gray-400 dark:text-gray-500 mb-3 italic">메모 없음</p>
+            )}
+            {item.taggedNames.length > 0 && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">with {item.taggedNames.join(", ")}</p>
             )}
           </>
         )}

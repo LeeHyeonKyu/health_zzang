@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("workout")
-    .select("id, date, note, user_id, tagged_with")
+    .select("id, date, note, user_id, tagged_with, created_at")
     .eq("season_id", season.id)
-    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .limit(limit + 1);
 
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (cursor) {
-    const sepIdx = cursor.lastIndexOf("_");
+    const sepIdx = cursor.indexOf("_");
     if (sepIdx > 0) {
-      const cursorDate = cursor.slice(0, sepIdx);
+      const cursorCreatedAt = cursor.slice(0, sepIdx);
       const cursorId = cursor.slice(sepIdx + 1);
-      query = query.or(`date.lt.${cursorDate},and(date.eq.${cursorDate},id.lt.${cursorId})`);
+      query = query.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`);
     }
   }
 
@@ -92,11 +92,13 @@ export async function GET(request: NextRequest) {
       avatarUrl: prof?.avatar_r2_key ? await getReadUrl(prof.avatar_r2_key) : null,
       media,
       taggedNames,
+      taggedIds: w.tagged_with ?? [],
+      created_at: w.created_at,
     };
   }));
 
   const lastItem = items[items.length - 1];
-  const nextCursor = hasMore ? `${lastItem.date}_${lastItem.id}` : null;
+  const nextCursor = hasMore ? `${lastItem.created_at}_${lastItem.id}` : null;
 
   return NextResponse.json({ items: responseItems, nextCursor, hasMore });
 }

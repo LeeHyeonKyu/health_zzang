@@ -12,6 +12,8 @@ export interface FeedItem extends WorkoutWithMedia {
   nickname: string;
   userId: string;
   taggedNames: string[];
+  taggedIds: string[];
+  created_at: string;
 }
 
 export async function getWorkoutsWithMedia(
@@ -62,8 +64,8 @@ export async function getCrewFeedWithMedia(
 ): Promise<FeedItem[]> {
   let query = supabase
     .from("workout")
-    .select("id, date, note, user_id, tagged_with")
-    .order("date", { ascending: false })
+    .select("id, date, note, user_id, tagged_with, created_at")
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (seasonId) {
@@ -125,6 +127,8 @@ export async function getCrewFeedWithMedia(
       userId: workout.user_id,
       media,
       taggedNames,
+      taggedIds: workout.tagged_with ?? [],
+      created_at: workout.created_at,
     });
   }
 

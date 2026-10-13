@@ -46,7 +46,7 @@ export default async function FeedPage() {
   const initialHasMore = feedItems.length > INITIAL_LIMIT;
   const initialItems = feedItems.slice(0, INITIAL_LIMIT);
   const lastItem = initialItems[initialItems.length - 1];
-  const initialNextCursor = initialHasMore && lastItem ? `${lastItem.date}_${lastItem.id}` : null;
+  const initialNextCursor = initialHasMore && lastItem ? `${lastItem.created_at}_${lastItem.id}` : null;
 
   // Compute lastFeedDates from all workouts (need a broader query for badge ordering)
   const { data: allWorkoutDates } = await supabase

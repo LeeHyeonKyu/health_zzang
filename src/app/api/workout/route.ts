@@ -72,7 +72,12 @@ export async function PATCH(request: NextRequest) {
   if (!user) return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "로그인이 필요합니다" } }, { status: 401 });
 
   const body = await request.json();
-  const { workout_id, date, note } = body as { workout_id: string; date?: string; note?: string };
+  const { workout_id, date, note, tagged_with } = body as {
+    workout_id: string;
+    date?: string;
+    note?: string;
+    tagged_with?: string[];
+  };
 
   if (!workout_id) return NextResponse.json({ error: { code: "MISSING_ID", message: "workout_id가 필요합니다" } }, { status: 400 });
 
@@ -84,9 +89,20 @@ export async function PATCH(request: NextRequest) {
   if (date !== undefined) {
     const today = todayStr();
     if (date > today) return NextResponse.json({ error: { code: "FUTURE_DATE", message: "미래 날짜는 선택할 수 없습니다" } }, { status: 400 });
+    const { data: existing } = await supabase
+      .from("workout")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("date", date)
+      .neq("id", workout_id)
+      .maybeSingle();
+    if (existing) return NextResponse.json({ error: { code: "DUPLICATE_DATE", message: "이미 해당 날짜에 기록이 있습니다" } }, { status: 409 });
     update.date = date;
   }
   if (note !== undefined) update.note = note || null;
+  if (tagged_with !== undefined) {
+    update.tagged_with = (tagged_with ?? []).filter((id) => id !== user.id);
+  }
 
   const { error } = await supabase.from("workout").update(update).eq("id", workout_id);
   if (error) return NextResponse.json({ error: { code: "UPDATE_FAILED", message: error.message } }, { status: 500 });
@@ -94,6 +110,7 @@ export async function PATCH(request: NextRequest) {
   revalidatePath("/records");
   revalidatePath("/penalty");
   revalidatePath("/stats");
+  revalidatePath("/feed");
 
   return NextResponse.json({ success: true });
 }
