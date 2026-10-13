@@ -3,6 +3,7 @@ import Link from "next/link";
 import ThemeToggle from "@/components/theme-toggle";
 import PerfReporter from "@/components/perf-reporter";
 import PWAInstallBanner from "@/components/pwa-install-banner";
+import PullToRefresh from "@/components/pull-to-refresh";
 import Avatar from "@/components/avatar";
 import { getUser, getProfile } from "@/lib/data";
 import { getReadUrl } from "@/lib/r2";
@@ -32,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
 
       <main className="flex-1 w-full max-w-screen-sm md:max-w-screen-md mx-auto px-4 py-5 pb-20">
-        {children}
+        <PullToRefresh>{children}</PullToRefresh>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-[#0f0f0f] border-t border-gray-200 dark:border-gray-800">
