@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import CalendarView from "@/components/calendar-view";
 import FeedCard from "@/components/feed-card";
 import WorkoutDetail from "@/components/workout-detail";
@@ -54,6 +55,22 @@ export default function RecordsContent({
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
   const [detailItem, setDetailItem] = useState<FeedItem | null>(null);
+  const router = useRouter();
+
+  function openDetail(item: FeedItem) {
+    setDetailItem(item);
+    history.pushState({ recordDetail: true }, "");
+  }
+
+  useEffect(() => {
+    function handlePopState() {
+      if (detailItem) {
+        setDetailItem(null);
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [detailItem]);
 
   const currentWeekStart = useMemo(() => {
     const base = getWeekStartDate();
@@ -94,7 +111,7 @@ export default function RecordsContent({
         item={detailItem}
         isOwner={detailItem.userId === currentUserId}
         members={members}
-        onBack={() => setDetailItem(null)}
+        onBack={() => history.back()}
         currentUserId={currentUserId}
       />
     );
@@ -142,7 +159,7 @@ export default function RecordsContent({
           feedItems={feedItems}
           selectedDate={selectedCalDate}
           onDateSelect={setSelectedCalDate}
-          onCardClick={setDetailItem}
+          onCardClick={openDetail}
           avatarMap={avatarMap}
         />
       )}

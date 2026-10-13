@@ -37,6 +37,28 @@ export default function FeedContent({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
+  function openDetail(item: FeedItem) {
+    setDetailItem(item);
+    history.pushState({ feedDetail: true }, "");
+  }
+
+  function closeDetail() {
+    setDetailItem(null);
+    router.refresh();
+  }
+
+  useEffect(() => {
+    function handlePopState(e: PopStateEvent) {
+      if (detailItem) {
+        e.preventDefault();
+        setDetailItem(null);
+        router.refresh();
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [detailItem, router]);
+
   const loadMore = useCallback(async () => {
     if (!nextCursor || loading) return;
     setLoading(true);
@@ -108,7 +130,7 @@ export default function FeedContent({
         item={detailItem}
         isOwner={detailItem.userId === currentUserId}
         members={members}
-        onBack={() => { setDetailItem(null); router.refresh(); }}
+        onBack={() => { history.back(); }}
         currentUserId={currentUserId}
         onReactionsChange={handleReactionsChange}
       />
@@ -136,7 +158,7 @@ export default function FeedContent({
       <FeedView
         items={items}
         seasonStartDate={seasonStartDate}
-        onCardClick={setDetailItem}
+        onCardClick={openDetail}
         avatarMap={feedAvatarMap}
         onReactionsChange={handleReactionsChange}
       />
