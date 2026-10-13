@@ -24,9 +24,10 @@ interface Props {
   workoutId?: string;
   reactionCounts?: { emoji: string; count: number; reacted: boolean }[];
   commentCount?: number;
+  onReactionsChange?: (workoutId: string, reactions: { emoji: string; count: number; reacted: boolean }[]) => void;
 }
 
-export default function FeedCard({ nickname, date, note, media, taggedNames, avatarUrl, onMemberClick, onCardClick, workoutId, reactionCounts, commentCount }: Props) {
+export default function FeedCard({ nickname, date, note, media, taggedNames, avatarUrl, onMemberClick, onCardClick, workoutId, reactionCounts, commentCount, onReactionsChange }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -114,7 +115,7 @@ export default function FeedCard({ nickname, date, note, media, taggedNames, ava
         {note && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{note}</p>}
         {workoutId && (
           <div className="mt-2 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-            <EmojiReactions workoutId={workoutId} reactions={reactionCounts ?? []} compact />
+            <EmojiReactions workoutId={workoutId} reactions={reactionCounts ?? []} compact onReactionsChange={onReactionsChange} />
             {(commentCount ?? 0) > 0 && (
               <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
                 <span>{"\u{1F4AC}"}</span>

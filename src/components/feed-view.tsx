@@ -9,9 +9,10 @@ interface Props {
   seasonStartDate: string;
   onCardClick: (item: FeedItem) => void;
   avatarMap?: Record<string, string>;
+  onReactionsChange?: (workoutId: string, reactions: { emoji: string; count: number; reacted: boolean }[]) => void;
 }
 
-export default function FeedView({ items, seasonStartDate, onCardClick, avatarMap }: Props) {
+export default function FeedView({ items, seasonStartDate, onCardClick, avatarMap, onReactionsChange }: Props) {
   if (items.length === 0) {
     return (
       <div className="bg-white dark:bg-[#1a1a1a] rounded-xl p-8 text-center shadow-sm border border-gray-100 dark:border-gray-800">
@@ -52,6 +53,7 @@ export default function FeedView({ items, seasonStartDate, onCardClick, avatarMa
               workoutId={item.id}
               reactionCounts={item.reactionCounts}
               commentCount={item.commentCount}
+              onReactionsChange={onReactionsChange}
             />
           </div>
         );

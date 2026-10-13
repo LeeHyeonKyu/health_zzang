@@ -13,9 +13,10 @@ interface Props {
   members: { id: string; nickname: string }[];
   onBack: () => void;
   currentUserId: string;
+  onReactionsChange?: (workoutId: string, reactions: { emoji: string; count: number; reacted: boolean }[]) => void;
 }
 
-export default function WorkoutDetail({ item, isOwner, members, onBack, currentUserId }: Props) {
+export default function WorkoutDetail({ item, isOwner, members, onBack, currentUserId, onReactionsChange }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(item.note ?? "");
@@ -221,7 +222,7 @@ export default function WorkoutDetail({ item, isOwner, members, onBack, currentU
       </div>
 
       <div className="mt-4">
-        <EmojiReactions workoutId={item.id} reactions={item.reactionCounts ?? []} />
+        <EmojiReactions workoutId={item.id} reactions={item.reactionCounts ?? []} onReactionsChange={onReactionsChange} />
       </div>
 
       <div className="mt-4">

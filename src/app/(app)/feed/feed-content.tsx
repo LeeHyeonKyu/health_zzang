@@ -93,6 +93,15 @@ export default function FeedContent({
     setLoading(false);
   }
 
+  function handleReactionsChange(workoutId: string, reactions: { emoji: string; count: number; reacted: boolean }[]) {
+    setItems((prev) => prev.map((item) =>
+      item.id === workoutId ? { ...item, reactionCounts: reactions } : item
+    ));
+    if (detailItem?.id === workoutId) {
+      setDetailItem((prev) => prev ? { ...prev, reactionCounts: reactions } : prev);
+    }
+  }
+
   if (detailItem) {
     return (
       <WorkoutDetail
@@ -101,6 +110,7 @@ export default function FeedContent({
         members={members}
         onBack={() => { setDetailItem(null); router.refresh(); }}
         currentUserId={currentUserId}
+        onReactionsChange={handleReactionsChange}
       />
     );
   }
@@ -128,6 +138,7 @@ export default function FeedContent({
         seasonStartDate={seasonStartDate}
         onCardClick={setDetailItem}
         avatarMap={feedAvatarMap}
+        onReactionsChange={handleReactionsChange}
       />
       <div ref={sentinelRef} className="py-4 text-center">
         {loading && <span className="text-sm text-gray-400 dark:text-gray-500">불러오는 중...</span>}
