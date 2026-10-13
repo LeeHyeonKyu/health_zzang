@@ -44,8 +44,8 @@ export default function FeedCard({ nickname, date, note, media, taggedNames, ava
   }
 
   return (
-    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-      {media.length > 0 && <div className="relative">
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+      {media.length > 0 && <div className="relative rounded-t-xl overflow-hidden">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
