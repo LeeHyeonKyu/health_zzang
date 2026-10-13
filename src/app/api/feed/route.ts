@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("workout")
-    .select("id, date, note, user_id, tagged_with")
+    .select("id, date, note, user_id, tagged_with, created_at")
     .eq("season_id", season.id)
     .order("date", { ascending: false })
-    .order("id", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(limit + 1);
 
   if (member) {
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (cursor) {
-    const sepIdx = cursor.lastIndexOf("_");
+    const sepIdx = cursor.indexOf("|");
     if (sepIdx > 0) {
       const cursorDate = cursor.slice(0, sepIdx);
-      const cursorId = cursor.slice(sepIdx + 1);
-      query = query.or(`date.lt.${cursorDate},and(date.eq.${cursorDate},id.lt.${cursorId})`);
+      const cursorCreatedAt = cursor.slice(sepIdx + 1);
+      query = query.or(`date.lt.${cursorDate},and(date.eq.${cursorDate},created_at.lt.${cursorCreatedAt})`);
     }
   }
 
@@ -125,13 +125,15 @@ export async function GET(request: NextRequest) {
       avatarUrl: prof?.avatar_r2_key ? await getReadUrl(prof.avatar_r2_key) : null,
       media,
       taggedNames,
+      taggedIds: w.tagged_with ?? [],
+      created_at: w.created_at,
       reactionCounts,
       commentCount: commentCountByWorkout.get(w.id) ?? 0,
     };
   }));
 
   const lastItem = items[items.length - 1];
-  const nextCursor = hasMore ? `${lastItem.date}_${lastItem.id}` : null;
+  const nextCursor = hasMore ? `${lastItem.date}|${lastItem.created_at}` : null;
 
   return NextResponse.json({ items: responseItems, nextCursor, hasMore });
 }

@@ -47,7 +47,7 @@ export default async function FeedPage() {
   const sliced = feedItems.slice(0, INITIAL_LIMIT);
   const initialItems = await enrichFeedItemsWithSocial(supabase, sliced, user.id);
   const lastItem = initialItems[initialItems.length - 1];
-  const initialNextCursor = initialHasMore && lastItem ? `${lastItem.created_at}_${lastItem.id}` : null;
+  const initialNextCursor = initialHasMore && lastItem ? `${lastItem.date}|${lastItem.created_at}` : null;
 
   // Compute lastFeedDates from all workouts (need a broader query for badge ordering)
   const { data: allWorkoutDates } = await supabase
