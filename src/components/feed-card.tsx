@@ -95,7 +95,7 @@ export default function FeedCard({ nickname, date, note, media, taggedNames, ava
         )}
       </div>}
 
-      <div className={`p-4 ${onCardClick ? "cursor-pointer" : ""}`} onClick={onCardClick}>
+      <div className={`p-4 pb-2 ${onCardClick ? "cursor-pointer active:bg-gray-50 dark:active:bg-[#222] transition-colors" : ""}`} onClick={onCardClick}>
         <div className="flex items-center gap-2 mb-1">
           <Avatar nickname={nickname} avatarUrl={avatarUrl} size="sm" />
           <div className="flex-1 flex items-center justify-between">
@@ -113,19 +113,22 @@ export default function FeedCard({ nickname, date, note, media, taggedNames, ava
           <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">with {taggedNames.join(", ")}</p>
         )}
         {note && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{note}</p>}
-        {workoutId && (
-          <div className="mt-2 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-            <EmojiReactions workoutId={workoutId} reactions={reactionCounts ?? []} compact onReactionsChange={onReactionsChange} />
-            {(commentCount ?? 0) > 0 && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
-                <span>{"\u{1F4AC}"}</span>
-                <span>{commentCount}</span>
-              </span>
-            )}
-          </div>
-        )}
-        {onCardClick && <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2">탭하여 상세 보기</p>}
       </div>
+
+      {workoutId && (
+        <div className="px-4 pb-3 pt-1 flex items-center gap-3 border-t border-gray-50 dark:border-gray-800/50">
+          <div className="flex-1">
+            <EmojiReactions workoutId={workoutId} reactions={reactionCounts ?? []} compact onReactionsChange={onReactionsChange} />
+          </div>
+          <button
+            onClick={onCardClick}
+            className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors min-h-[28px] px-2"
+          >
+            <span>{"\u{1F4AC}"}</span>
+            <span>{commentCount ?? 0}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

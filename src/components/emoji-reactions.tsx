@@ -112,7 +112,7 @@ export default function EmojiReactions({ workoutId, reactions: initialReactions,
             {"\u{1F600}"}
           </button>
           {pickerOpen && (
-            <div className="absolute bottom-full mb-2 left-0 z-50 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-2 flex gap-1 flex-wrap w-[200px]">
+            <div className={`absolute ${compact ? "top-full mt-2" : "bottom-full mb-2"} left-0 z-50 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg p-2 flex gap-1 flex-wrap w-[200px]`}>
               {EMOJI_SET.map((emoji) => (
                 <button
                   key={emoji}
