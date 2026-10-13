@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getReadUrl } from "@/lib/r2";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     : { data: [] };
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
-  const items = (comments ?? []).map((c) => {
+  const items = await Promise.all((comments ?? []).map(async (c) => {
     const prof = profileMap.get(c.user_id);
     return {
       id: c.id,
@@ -33,11 +34,11 @@ export async function GET(request: NextRequest) {
       user_id: c.user_id,
       content: c.content,
       nickname: prof?.nickname ?? "알 수 없음",
-      avatar_r2_key: prof?.avatar_r2_key ?? null,
+      avatar_url: prof?.avatar_r2_key ? await getReadUrl(prof.avatar_r2_key) : null,
       created_at: c.created_at,
       updated_at: c.updated_at,
     };
-  });
+  }));
 
   return NextResponse.json({ comments: items });
 }

@@ -53,7 +53,7 @@ export default function CommentSection({ workoutId, currentUserId, currentNickna
       updated_at: c.updated_at as string,
       nickname: c.nickname as string,
       userId: c.user_id as string,
-      avatarUrl: c.avatar_r2_key as string | undefined,
+      avatarUrl: c.avatar_url as string | undefined,
     }));
   }
 
