@@ -67,12 +67,17 @@ export function formatDate(date: string): string {
   return new Date(date + "T00:00:00").toLocaleDateString("ko-KR", {
     month: "long",
     day: "numeric",
+    timeZone: "Asia/Seoul",
   });
 }
 
 export function formatDateShort(date: string): string {
   const d = new Date(date + "T00:00:00");
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return d.toLocaleDateString("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    timeZone: "Asia/Seoul",
+  }).replace(". ", "/").replace(".", "");
 }
 
 export function formatCurrency(amount: number): string {
