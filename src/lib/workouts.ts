@@ -136,3 +136,46 @@ export async function getCrewFeedWithMedia(
 
   return result;
 }
+
+export async function enrichFeedItemsWithSocial(
+  supabase: SupabaseClient,
+  items: FeedItem[],
+  currentUserId: string
+): Promise<FeedItem[]> {
+  if (items.length === 0) return items;
+
+  const workoutIds = items.map((w) => w.id);
+  const [{ data: reactions }, { data: comments }] = await Promise.all([
+    supabase.from("reaction").select("workout_id, emoji, user_id").in("workout_id", workoutIds),
+    supabase.from("comment").select("workout_id").in("workout_id", workoutIds),
+  ]);
+
+  const reactionsByWorkout = new Map<string, { emoji: string; user_id: string }[]>();
+  for (const r of reactions ?? []) {
+    const existing = reactionsByWorkout.get(r.workout_id) ?? [];
+    existing.push({ emoji: r.emoji, user_id: r.user_id });
+    reactionsByWorkout.set(r.workout_id, existing);
+  }
+
+  const commentCountByWorkout = new Map<string, number>();
+  for (const c of comments ?? []) {
+    commentCountByWorkout.set(c.workout_id, (commentCountByWorkout.get(c.workout_id) ?? 0) + 1);
+  }
+
+  return items.map((item) => {
+    const workoutReactions = reactionsByWorkout.get(item.id) ?? [];
+    const emojiMap = new Map<string, { count: number; reacted: boolean }>();
+    for (const r of workoutReactions) {
+      const entry = emojiMap.get(r.emoji) ?? { count: 0, reacted: false };
+      entry.count++;
+      if (r.user_id === currentUserId) entry.reacted = true;
+      emojiMap.set(r.emoji, entry);
+    }
+
+    return {
+      ...item,
+      reactionCounts: [...emojiMap.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted })),
+      commentCount: commentCountByWorkout.get(item.id) ?? 0,
+    };
+  });
+}

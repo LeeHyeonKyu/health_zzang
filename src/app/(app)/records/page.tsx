@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUser, getProfile, getActiveSeason, getCrewMembers, getExemptions } from "@/lib/data";
-import { getCrewFeedWithMedia, type FeedItem } from "@/lib/workouts";
+import { getCrewFeedWithMedia, enrichFeedItemsWithSocial, type FeedItem } from "@/lib/workouts";
 import { getReadUrl } from "@/lib/r2";
 import RecordsContent from "./records-content";
 
@@ -31,7 +31,7 @@ export default async function RecordsPage() {
       supabase.from("profiles").select("id, avatar_r2_key").eq("crew_id", profile.crew_id).not("avatar_r2_key", "is", null),
     ]);
     allWorkouts = workouts ?? [];
-    feedItems = feed;
+    feedItems = await enrichFeedItemsWithSocial(supabase, feed, user.id);
     exemptions = exs;
     for (const p of avatarProfiles ?? []) {
       if (p.avatar_r2_key) {

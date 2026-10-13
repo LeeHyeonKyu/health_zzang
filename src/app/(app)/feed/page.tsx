@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUser, getProfile, getActiveSeason, getCrewMembers } from "@/lib/data";
-import { getCrewFeedWithMedia } from "@/lib/workouts";
+import { getCrewFeedWithMedia, enrichFeedItemsWithSocial } from "@/lib/workouts";
 import { getReadUrl } from "@/lib/r2";
 import FeedContent from "./feed-content";
 import Link from "next/link";
@@ -44,7 +44,8 @@ export default async function FeedPage() {
   }
 
   const initialHasMore = feedItems.length > INITIAL_LIMIT;
-  const initialItems = feedItems.slice(0, INITIAL_LIMIT);
+  const sliced = feedItems.slice(0, INITIAL_LIMIT);
+  const initialItems = await enrichFeedItemsWithSocial(supabase, sliced, user.id);
   const lastItem = initialItems[initialItems.length - 1];
   const initialNextCursor = initialHasMore && lastItem ? `${lastItem.created_at}_${lastItem.id}` : null;
 
