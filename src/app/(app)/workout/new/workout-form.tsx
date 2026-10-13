@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { compressImage } from "@/lib/image-compress";
+import { todayStr } from "@/lib/utils";
 
 interface MediaFile {
   file: File;
@@ -24,7 +25,7 @@ function formatFileSize(bytes: number): string {
 export default function WorkoutForm({ crewMembers }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(todayStr());
   const [note, setNote] = useState("");
   const [files, setFiles] = useState<MediaFile[]>([]);
   const [taggedIds, setTaggedIds] = useState<string[]>([]);
@@ -152,7 +153,7 @@ export default function WorkoutForm({ crewMembers }: Props) {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr();
   const totalBytes = files.reduce((sum, f) => sum + f.file.size, 0);
   const hasVideo = files.some((f) => f.type === "video");
 

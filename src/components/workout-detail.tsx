@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { formatDate } from "@/lib/utils";
+import { formatDate, todayStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
 
 interface Props {
@@ -69,7 +69,7 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
     onBack();
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = todayStr();
 
   return (
     <div>

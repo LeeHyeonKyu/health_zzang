@@ -1,16 +1,19 @@
-/**
- * Timezone-safe date string formatting.
- * Uses local date components, NOT toISOString() which converts to UTC.
- */
+// KST (UTC+9) 기준 현재 시각. Vercel(UTC) 서버에서도 한국 날짜를 반환한다.
+function kstNow(): Date {
+  const now = new Date();
+  const diff = (9 * 60 + now.getTimezoneOffset()) * 60000;
+  return new Date(now.getTime() + diff);
+}
+
 export function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function todayStr(): string {
-  return toDateStr(new Date());
+  return toDateStr(kstNow());
 }
 
-export function getWeekStart(date: Date = new Date()): string {
+export function getWeekStart(date: Date = kstNow()): string {
   const d = new Date(date);
   const day = d.getDay();
   d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
@@ -24,7 +27,7 @@ export function getWeekEnd(weekStart: string): string {
   return toDateStr(d);
 }
 
-export function getWeekStartDate(date: Date = new Date()): Date {
+export function getWeekStartDate(date: Date = kstNow()): Date {
   const d = new Date(date);
   const day = d.getDay();
   d.setDate(d.getDate() - day + (day === 0 ? -6 : 1));
