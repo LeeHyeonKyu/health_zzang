@@ -95,6 +95,7 @@ export default function RecordsContent({
         isOwner={detailItem.userId === currentUserId}
         members={members}
         onBack={() => setDetailItem(null)}
+        currentUserId={currentUserId}
       />
     );
   }

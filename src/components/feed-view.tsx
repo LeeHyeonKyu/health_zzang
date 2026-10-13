@@ -49,6 +49,9 @@ export default function FeedView({ items, seasonStartDate, onCardClick, avatarMa
               taggedNames={item.taggedNames}
               avatarUrl={avatarMap?.[item.userId]}
               onCardClick={() => onCardClick(item)}
+              workoutId={item.id}
+              reactionCounts={item.reactionCounts}
+              commentCount={item.commentCount}
             />
           </div>
         );

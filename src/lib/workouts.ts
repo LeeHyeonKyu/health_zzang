@@ -14,6 +14,8 @@ export interface FeedItem extends WorkoutWithMedia {
   taggedNames: string[];
   taggedIds: string[];
   created_at: string;
+  reactionCounts?: { emoji: string; count: number; reacted: boolean }[];
+  commentCount?: number;
 }
 
 export async function getWorkoutsWithMedia(

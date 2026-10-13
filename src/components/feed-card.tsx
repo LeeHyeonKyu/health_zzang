@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { formatDate } from "@/lib/utils";
 import Avatar from "@/components/avatar";
+import EmojiReactions from "@/components/emoji-reactions";
 
 interface MediaItem {
   r2_key: string;
@@ -20,9 +21,12 @@ interface Props {
   avatarUrl?: string;
   onMemberClick?: () => void;
   onCardClick?: () => void;
+  workoutId?: string;
+  reactionCounts?: { emoji: string; count: number; reacted: boolean }[];
+  commentCount?: number;
 }
 
-export default function FeedCard({ nickname, date, note, media, taggedNames, avatarUrl, onMemberClick, onCardClick }: Props) {
+export default function FeedCard({ nickname, date, note, media, taggedNames, avatarUrl, onMemberClick, onCardClick, workoutId, reactionCounts, commentCount }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -108,6 +112,17 @@ export default function FeedCard({ nickname, date, note, media, taggedNames, ava
           <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">with {taggedNames.join(", ")}</p>
         )}
         {note && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{note}</p>}
+        {workoutId && (
+          <div className="mt-2 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+            <EmojiReactions workoutId={workoutId} reactions={reactionCounts ?? []} compact />
+            {(commentCount ?? 0) > 0 && (
+              <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                <span>{"\u{1F4AC}"}</span>
+                <span>{commentCount}</span>
+              </span>
+            )}
+          </div>
+        )}
         {onCardClick && <p className="text-[10px] text-gray-300 dark:text-gray-600 mt-2">탭하여 상세 보기</p>}
       </div>
     </div>

@@ -4,15 +4,18 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatDate, todayStr } from "@/lib/utils";
 import type { FeedItem } from "@/lib/workouts";
+import EmojiReactions from "@/components/emoji-reactions";
+import CommentSection from "@/components/comment-section";
 
 interface Props {
   item: FeedItem;
   isOwner: boolean;
   members: { id: string; nickname: string }[];
   onBack: () => void;
+  currentUserId: string;
 }
 
-export default function WorkoutDetail({ item, isOwner, members, onBack }: Props) {
+export default function WorkoutDetail({ item, isOwner, members, onBack, currentUserId }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [editNote, setEditNote] = useState(item.note ?? "");
@@ -215,6 +218,14 @@ export default function WorkoutDetail({ item, isOwner, members, onBack }: Props)
         )}
 
         {error && !editing && <p className="text-sm text-red-500 dark:text-red-400 mt-2">{error}</p>}
+      </div>
+
+      <div className="mt-4">
+        <EmojiReactions workoutId={item.id} reactions={item.reactionCounts ?? []} />
+      </div>
+
+      <div className="mt-4">
+        <CommentSection workoutId={item.id} currentUserId={currentUserId} />
       </div>
     </div>
   );

@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("workout")
-    .select("id, date, note, user_id, tagged_with, created_at")
+    .select("id, date, note, user_id, tagged_with")
     .eq("season_id", season.id)
-    .order("created_at", { ascending: false })
+    .order("date", { ascending: false })
     .order("id", { ascending: false })
     .limit(limit + 1);
 
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (cursor) {
-    const sepIdx = cursor.indexOf("_");
+    const sepIdx = cursor.lastIndexOf("_");
     if (sepIdx > 0) {
-      const cursorCreatedAt = cursor.slice(0, sepIdx);
+      const cursorDate = cursor.slice(0, sepIdx);
       const cursorId = cursor.slice(sepIdx + 1);
-      query = query.or(`created_at.lt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.lt.${cursorId})`);
+      query = query.or(`date.lt.${cursorDate},and(date.eq.${cursorDate},id.lt.${cursorId})`);
     }
   }
 
@@ -59,15 +59,38 @@ export async function GET(request: NextRequest) {
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   const workoutIds = items.map((w) => w.id);
-  const { data: allMedia } = await supabase
-    .from("media")
-    .select("workout_id, r2_key, type")
-    .in("workout_id", workoutIds);
+  const [{ data: allMedia }, { data: allReactions }, { data: commentCounts }] = await Promise.all([
+    supabase
+      .from("media")
+      .select("workout_id, r2_key, type")
+      .in("workout_id", workoutIds),
+    supabase
+      .from("reaction")
+      .select("workout_id, emoji, user_id")
+      .in("workout_id", workoutIds),
+    supabase
+      .from("comment")
+      .select("workout_id")
+      .in("workout_id", workoutIds),
+  ]);
+
   const mediaByWorkout = new Map<string, { workout_id: string; r2_key: string; type: string }[]>();
   for (const m of allMedia ?? []) {
     const existing = mediaByWorkout.get(m.workout_id) ?? [];
     existing.push(m);
     mediaByWorkout.set(m.workout_id, existing);
+  }
+
+  const reactionsByWorkout = new Map<string, { emoji: string; user_id: string }[]>();
+  for (const r of allReactions ?? []) {
+    const existing = reactionsByWorkout.get(r.workout_id) ?? [];
+    existing.push({ emoji: r.emoji, user_id: r.user_id });
+    reactionsByWorkout.set(r.workout_id, existing);
+  }
+
+  const commentCountByWorkout = new Map<string, number>();
+  for (const c of commentCounts ?? []) {
+    commentCountByWorkout.set(c.workout_id, (commentCountByWorkout.get(c.workout_id) ?? 0) + 1);
   }
 
   const responseItems = await Promise.all(items.map(async (w) => {
@@ -83,6 +106,16 @@ export async function GET(request: NextRequest) {
       .map((id: string) => profileMap.get(id)?.nickname)
       .filter(Boolean) as string[];
 
+    const workoutReactions = reactionsByWorkout.get(w.id) ?? [];
+    const emojiMap = new Map<string, { count: number; reacted: boolean }>();
+    for (const r of workoutReactions) {
+      const entry = emojiMap.get(r.emoji) ?? { count: 0, reacted: false };
+      entry.count++;
+      if (r.user_id === user!.id) entry.reacted = true;
+      emojiMap.set(r.emoji, entry);
+    }
+    const reactionCounts = [...emojiMap.entries()].map(([emoji, { count, reacted }]) => ({ emoji, count, reacted }));
+
     return {
       id: w.id,
       date: w.date,
@@ -92,13 +125,13 @@ export async function GET(request: NextRequest) {
       avatarUrl: prof?.avatar_r2_key ? await getReadUrl(prof.avatar_r2_key) : null,
       media,
       taggedNames,
-      taggedIds: w.tagged_with ?? [],
-      created_at: w.created_at,
+      reactionCounts,
+      commentCount: commentCountByWorkout.get(w.id) ?? 0,
     };
   }));
 
   const lastItem = items[items.length - 1];
-  const nextCursor = hasMore ? `${lastItem.created_at}_${lastItem.id}` : null;
+  const nextCursor = hasMore ? `${lastItem.date}_${lastItem.id}` : null;
 
   return NextResponse.json({ items: responseItems, nextCursor, hasMore });
 }

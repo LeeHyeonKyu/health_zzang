@@ -100,6 +100,7 @@ export default function FeedContent({
         isOwner={detailItem.userId === currentUserId}
         members={members}
         onBack={() => { setDetailItem(null); router.refresh(); }}
+        currentUserId={currentUserId}
       />
     );
   }
